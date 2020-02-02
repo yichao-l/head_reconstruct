@@ -37,9 +37,17 @@ class ThreeDHead():
         return pickle.loads(raw_data)
 
 
-    def img_coord_from_xyz(self):
-        # creates a list of x,y coordinates
-        self.index2xy=None
+    def img_coord_from_xyz(self, rgb):
+        '''
+        Convert a list of rbg values to a 2D image
+        params:
+            rgb (list[int,int,int]): a list of rgb values
+        return:
+            the rgb image in a 480, 640 format
+        '''
+        image = np.reshape(this.rgb,(480,640,3))      
+        self.index2xy= image
+        return image
 
     def filter_1(self):
         self.rgb=self.rgb
