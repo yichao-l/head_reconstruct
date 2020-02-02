@@ -1,6 +1,4 @@
-import AV_CW
-
-
+import HEAD_RECON
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -8,7 +6,7 @@ import struct
 from vpython import *
 import pickle
 
-head = AV_CW.ThreeDHead.load()
+head = HEAD_RECON.ThreeDHead.load()
 scene.width = scene.height = 800
 scene.background = color.white
 scene.range = 0.3

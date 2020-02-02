@@ -17,13 +17,22 @@ class ThreeDHead():
 
     @classmethod
     def read_from_file(cls, sequence_id, frame_id):
-
+        '''
+        Read from a .pcd file and extract its xyz and rgb values as
+        two seperate lists, stored in xyz, rgb class variables.
+        params:
+        sequence_id (int): The person's number, from 1 to 4.
+        frame_id (int): The frame number, from 1 to 15.
+        '''
+        # compose the data path
         data_path = f"./Data/{sequence_id}"
         this = cls(data_path)
         file_name = os.path.join(data_path, f"{sequence_id}_{frame_id}.pcd")
 
+        # read the .pcd file
         pc = np.genfromtxt(file_name, skip_header=13)
 
+        # extract the xyz, rgb info
         this.xyz = pc[:, 0:3]
         this.rgb = np.asarray([float_2_rgb(num) for num in pc[:, 3]])/256
         this.sequence_id=sequence_id
@@ -55,6 +64,9 @@ class ThreeDHead():
 
 
     def filter_depth(self,depth):
+        '''
+        Keep the ... 
+        '''
         depth_filter = self.xyz[:, 2] < depth
         self.rgb=  self.rgb[depth_filter]
         self.xyz=  self.xyz[depth_filter]
