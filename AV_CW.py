@@ -46,7 +46,7 @@ class ThreeDHead():
             the rgb image in a 480, 640 format
         '''
         image = np.reshape(this.rgb,(480,640,3))      
-        self.index2xy= image
+        self.2dimage= image
         return image
 
     def filter_1(self):
