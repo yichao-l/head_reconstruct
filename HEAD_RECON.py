@@ -15,13 +15,14 @@ class threeD_head():
         self.data_path=data_path
 
     @classmethod
-    def read_from_file(cls, sequence_id, frame_id):
+    def read_from_file(cls, sequence_id, frame_id, depth=1.5):
         '''
         Read from a .pcd file and extract its xyz and rgb values as
         two seperate lists, stored in xyz, rgb class variables.
         params:
         sequence_id (int): The person's number, from 1 to 4.
         frame_id (int): The frame number, from 1 to 15.
+        depth (float): threshold parameter for the depth filter.
         '''
         # compose the data path
         data_path = f"./Data/{sequence_id}"
@@ -37,6 +38,16 @@ class threeD_head():
         this.sequence_id=sequence_id
         this.frame_id=frame_id
         this.img_coord_from_xyz()
+
+        # perform thresholding in depth axis, remove the nan pixels
+        # and the flying pixels.
+        # Then center the pixels, create vpython spheres 
+        # and save as pickel obj for future use.
+        this.filter_nan()
+        this.filter_depth(depth)
+        this.center()
+        this.create_vpython_spheres()
+        this.save()
         return this
 
     @classmethod
