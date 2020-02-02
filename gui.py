@@ -6,7 +6,7 @@ import struct
 from vpython import *
 import pickle
 
-head = HEAD_RECON.ThreeDHead.load()
+head = HEAD_RECON.threeD_head.load()
 scene.width = scene.height = 800
 scene.background = color.white
 scene.range = 0.3
@@ -26,7 +26,7 @@ def Readbutton(b):
     global c
     with open('head.p', 'rb') as file_object:
         raw_data = file_object.read()
-    head = AV_CW.ThreeDHead.load()
+    head = HEAD_RECON.threeD_head.load()
     c.visible=False
     del c
     c = points(pos=head.spheres, size_units='world')

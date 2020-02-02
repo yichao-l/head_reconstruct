@@ -10,7 +10,7 @@ def float_2_rgb(num):
     return [c for c in packed][1:]
 
 
-class ThreeDHead():
+class threeD_head():
     def __init__(self, data_path=None):
         self.data_path=data_path
 
