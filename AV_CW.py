@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import struct
 from vpython import *
-
+import pickle
 
 def float_2_rgb(num):
     packed = struct.pack('!f', num)
@@ -30,6 +30,12 @@ class ThreeDHead():
         this.frame_id=frame_id
         return this
 
+    @classmethod
+    def load(cls, data_file='head.p'):
+        with open('head.p', 'rb') as file_object:
+            raw_data = file_object.read()
+        return pickle.loads(raw_data)
+
 
     def img_coord_from_xyz(self):
         # creates a list of x,y coordinates
@@ -52,7 +58,7 @@ class ThreeDHead():
 
     def sparsify(self,sparsity):
         l=self.xyz.shape[0]
-        filter = np.random.random((l)) < 0.5
+        filter = np.random.random((l)) < sparsity
         self.xyz = self.xyz[filter]
         self.rgb = self.rgb[filter]
 
@@ -68,4 +74,6 @@ class ThreeDHead():
             next = vec(self.xyz[i,0],-self.xyz[i,1],-self.xyz[i,2])
             self.spheres.append({'pos':next, 'radius':0.003, 'color':(vec(self.rgb[i,0],self.rgb[i,1],self.rgb[i,2]))})
 
+    def save(self, file_name='head.p'):
+        pickle.dump(self, open(file_name, 'wb'))
 
