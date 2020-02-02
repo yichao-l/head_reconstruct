@@ -1,3 +1,7 @@
+'''
+GUI for rendering 3D head objects
+'''
+
 import HEAD_RECON
 import numpy as np
 import matplotlib.pyplot as plt
