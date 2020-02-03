@@ -4,12 +4,64 @@ import os
 import struct
 from vpython import *
 import pickle
+import cv2
 
 def float_2_rgb(num):
     packed = struct.pack('!f', num)
     return [c for c in packed][1:]
 
+class estimate_frame_transform():
+    '''
+    Estimate the reference transformation linking each consecutive pair of frames.
+    '''
+    def __init__(self,img1, img2):
+        '''
+        img1, img2: The two images that we want to estimate the 
+        transformation for (not sure about the format yet).
+        '''
+        self.img1 = img1
+        self.img2 = img2
+    
+    @classmethod
+    def get_descriptors(cls,image_path):
+        '''
+        param:
+        image (string): path to colored image
+        return:
+        void
+        '''
+        # Load the image in BGR
+        img = cv2.imread(image_path)
+        # gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
+        # Find keypoints
+        sift = cv2.xfeatures2d.SIFT_create()
+        kp, des = sift.detectAndCompute(img,None)
+        # img = cv2.drawKeypoints(gray,kp,img)        
+        return kp, des
+
+    @classmethod
+    def get_matched_points(cls, img1, kp1, des1, img2, kp2, des2):
+        '''
+        find a set of good matching descriptors given two set of keypoints and descriptors
+        '''
+        bf = cv2.BFMatcher()
+        matches = bf.knnMatch(des1,des2, k=2)
+
+        # Apply ratio test
+        good = []
+        good_without_list = []
+        for m,n in matches:
+            if m.distance < 0.4*n.distance:
+                good.append([m])
+                good_without_list.append(m)
+
+        # cv2.drawMatchesKnn expects list of lists as matches.
+        img3 = cv2.drawMatchesKnn(img1,kp1,img2,kp2,good,None,flags=2)
+        plt.imshow(img3),plt.show()
+        plt.imsave("des_match.png",img3)
+        return good,good_without_list
+        
 class threeD_head():
     def __init__(self, data_path=None):
         self.data_path=data_path
@@ -43,11 +95,11 @@ class threeD_head():
         # and the flying pixels.
         # Then center the pixels, create vpython spheres 
         # and save as pickel obj for future use.
-        this.filter_nan()
-        this.filter_depth(depth)
-        this.center()
-        this.create_vpython_spheres()
-        this.save()
+        # this.filter_nan()
+        # this.filter_depth(depth)
+        # this.center()
+        # this.create_vpython_spheres()
+        # this.save()
         return this
 
     @classmethod
