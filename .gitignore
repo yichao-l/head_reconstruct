@@ -2,3 +2,4 @@ av/
 .idea/
 .ipynb_checkpoints/
 _pycache_/
+*.p
