@@ -91,7 +91,10 @@ class estimate_frame_transform():
         else:
             print ("Not enough matches are found - %d/%d, turn up the match ratio." % (len(good),MIN_MATCH_COUNT))
             matchesMask = None
-        cleaned_matches = np.array(matches)[np.array(matchesMask)]
+
+        mask = np.array(matchesMask)
+        mask = [m>0 for m in mask.reshape([-1,])]
+        cleaned_matches = np.array(matches)[mask]
 
         draw_params = dict(matchColor = (0,255,0), # draw matches in green color
                    singlePointColor = None,
