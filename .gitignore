@@ -3,3 +3,4 @@ av/
 .ipynb_checkpoints/
 __pycache__/
 *.p
+__pycache__/AV_CW.cpython-37.pyc
