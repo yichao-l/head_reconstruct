@@ -121,7 +121,7 @@ class threeD_head():
         self.background_color=None
 
     @classmethod
-    def read_from_file(cls, sequence_id, frame_id, depth=1.5):
+    def read_from_file(cls, sequence_id, frame_id):
         '''
         Read from a .pcd file and extract its xyz and rgb values as
         two seperate lists, stored in xyz, rgb class variables.
@@ -146,20 +146,6 @@ class threeD_head():
         this.sequence_id=sequence_id
         this.frame_id=frame_id
         this.img_coord_from_xyz()
-
-        # perform thresholding in depth axis, remove the nan pixels
-        # and the flying pixels.
-        # Then center the pixels, create vpython spheres 
-        # and save as pickel obj for future use.
-        this.reset_filters()
-        this.filter_nan()
-        this.filter_depth(depth)
-        this.remove_dangling()
-        this.remove_color()
-        this.remove_background_color()
-        this.center()
-        this.create_vpython_spheres()
-        this.save()
         return this
 
     @classmethod
@@ -201,13 +187,13 @@ class threeD_head():
             img = np.zeros((480 * 640, 3))
         for v in self.xy_mesh:
             img[v]=twoD_image[v]
-
         # save image to head_2d_image
         image_dir = "head_2d_image"
         save_path = os.path.join(image_dir,"head_{}_{}.png".format(self.sequence_id,\
         self.frame_id))
         plt.imsave(save_path,img.reshape(480,640,3))
         return img.reshape(480,640,3), save_path
+
 
     def reset_filters(self):
         '''
@@ -217,6 +203,21 @@ class threeD_head():
         self.xy_mesh = np.arange(640 * 480)
         self.xyz=self.xyz_unfiltered
         self.rgb=self.rgb_unfiltered
+
+    def reset_positions(self):
+        '''
+        Resets all the filters
+        :return:
+        '''
+        self.xyz=self.xyz_unfiltered[self.xy_mesh]
+
+    def reset_colors(self):
+        '''
+        Resets all the filters
+        :return:
+        '''
+        self.rgb=self.rgb_unfiltered[self.xy_mesh]
+
 
 
     def get_bw_image(self):
@@ -239,10 +240,35 @@ class threeD_head():
             img[v]=True
         return img.reshape(480,640)
 
+    def transform(self, R, c,t):
+        '''
+        transform the image:  XYZ*cR + t
+        '''
+        self.xyz= self.xyz.dot(c*R)+t
 
-    def filter_1(self):
-        self.rgb=self.rgb
-        self.xyz=self.xyz
+    def paint(self, color):
+        '''
+        transform the image:  XYZ*cR + t
+        '''
+        color=np.asarray(color).reshape(-1)
+        self.rgb = self.rgb.mean(axis=1).reshape((-1,1)).dot(np.asarray([[1,1,1]])) * color
+
+
+    def full_filter(self,  depth=1.5):
+        # perform thresholding in depth axis, remove the nan pixels
+        # and the flying pixels.
+        # Then center the pixels, create vpython spheres
+        # and save as pickel obj for future use.
+        self.reset_filters()
+        self.filter_nan()
+        self.filter_depth(depth)
+        self.remove_dangling()
+        self.remove_background_color()
+        self.center()
+        self.create_vpython_spheres()
+        self.save()
+
+
 
 
     def filter_depth(self,depth):
@@ -282,7 +308,8 @@ class threeD_head():
         centers the object
         :return:
         '''
-        self.xyz = self.xyz - self.xyz.mean(axis=0)
+        self.center_pos= self.xyz.mean(axis=0)
+        self.xyz = self.xyz - self.center_pos
 
     def remove_dangling(self):
         filter =np.ones(self.xy_mesh.shape) >0
@@ -292,7 +319,7 @@ class threeD_head():
             filter = np.ones(self.xy_mesh.shape) > 0
             start_cnt = np.sum(filter)
             bool_img = self.get_bool_image()
-            print("remove danlging start" , np.sum(filter))
+            # print("remove danlging start" , np.sum(filter))
             for i, index in enumerate (self.xy_mesh):
                 y=index//640
                 x=index % 640
@@ -304,9 +331,9 @@ class threeD_head():
             self.xy_mesh=self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
-            print("remove dangling end" ,np.sum(filter))
+            # print("remove dangling end" ,np.sum(filter))
             end_cnt = np.sum(filter)
-            print(end_cnt)
+            # print(end_cnt)
 
 
     def remove_color(self):
@@ -325,7 +352,7 @@ class threeD_head():
         filter =np.ones(self.xy_mesh.shape) >0
         start_cnt=np.sum(filter)
         end_cnt=0
-        print(start_cnt)
+        # print(start_cnt)
         self.background_color=[]
         while end_cnt<start_cnt:
             bool_img = self.get_bool_image()
@@ -380,7 +407,7 @@ class threeD_head():
                                         filter[i] = False
                                         self.background_color.append(self.rgb[i])
             end_cnt = np.sum(filter)
-            print(end_cnt)
+            # print(end_cnt)
             self.xy_mesh=self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
@@ -394,7 +421,7 @@ class threeD_head():
 
         verbose = False
         min_grad=0.15
-        min_grad=0.2
+        min_grad=0.27
         size=3
         lb=size//2
         ub=size//2+1
@@ -402,15 +429,15 @@ class threeD_head():
         start_cnt=np.sum(filter)
 
         m1=np.nanmean(self.rgb_unfiltered,axis=0)
-        print(m1)
+        # print(m1)
         m2=np.nanmean(self.rgb,axis=0)
-        print(m2)
+        # print(m2)
 
         self.background_color = (m1*640*480-m2*start_cnt)/(640*480-start_cnt)
-        print(self.background_color)
+        # print(self.background_color)
 
         end_cnt=0
-        print(start_cnt)
+        # print(start_cnt)
         while end_cnt<start_cnt:
             bool_img = self.get_bool_image()
             filter = np.ones(self.xy_mesh.shape) > 0
@@ -436,11 +463,11 @@ class threeD_head():
                                 filter[i] = False
 
             end_cnt = np.sum(filter)
-            print(end_cnt)
+            # print(end_cnt)
             self.xy_mesh=self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
-            print(self.rgb.shape)
+            # print(self.rgb.shape)
 
 
 
@@ -452,7 +479,15 @@ class threeD_head():
         self.spheres = []
         for i in range(self.xyz.shape[0]):
             next = vec(self.xyz[i,0],-self.xyz[i,1],-self.xyz[i,2])
-            self.spheres.append({'pos':next, 'radius':0.003, 'color':(vec(self.rgb[i,0],self.rgb[i,1],self.rgb[i,2]))})
+            if np.all(self.rgb[i]==[0,1,0]):
+                rad=0.005
+            elif np.all(self.rgb[i] == [1, 0, 0]):
+                rad = 0.005
+            elif np.all(self.rgb[i] == [0, 0, 1]):
+                rad = 0.005
+            else:
+                rad = 0.003
+            self.spheres.append({'pos':next, 'radius':rad, 'color':(vec(self.rgb[i,0],self.rgb[i,1],self.rgb[i,2]))})
 
     def save(self, file_name='head.p'):
         '''
