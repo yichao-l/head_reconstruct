@@ -1,39 +1,45 @@
 from Procrustes2 import *
-import  HEAD_RECON
+import HEAD_RECON
 import pickle
 import HEAD_RECON
 import icp
 from SIFT import *
 
+
 class MultiHead():
+
     def __init__(self):
-        self.heads=[]
+        self.heads = []
 
     @classmethod
     def joined_heads(cls, head1, head2):
-        cls.__init__(cls)
-        cls.heads.append(head1)
-        cls.heads.append(head2)
-        cls.join_heads(cls,0,1)
-        return cls
+
+        this= cls()
+        this.heads.append(head1)
+        this.heads.append(head2)
+        this.join_heads(0, 1)
+        return this
+
+
+
 
     def join_heads(self, index1, index2):
-        head1= self.heads[index1]
-        head2= self.heads[index2]
+        head1 = self.heads[index1]
+        head2 = self.heads[index2]
 
         img1, path1 = head1.get_filtered_image()
         img2, path2 = head2.get_filtered_image()
         kp1, des1 = get_descriptors(path1)
         kp2, des2 = get_descriptors(path2)
-        good_without_list = get_matched_points(path1,kp1,des1,path2,kp2,des2,0.8)
+        good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, 0.8)
 
-        cleaned_match = clean_matches(kp1,path1,kp2,path2,good_without_list)
+        cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list)
 
         head1.reset_colors()
         head2.reset_colors()
         # code below can be used to create
         head1.paint([0, 0, 1])
-        head2.paint([1,1,0])
+        head2.paint([1, 1, 0])
         head1.reset_positions()
         head2.reset_positions()
         head1.center()
@@ -50,11 +56,10 @@ class MultiHead():
         xyindex2 = xy2[:, 1] * 640 + xy2[:, 0]
         xyz2 = head2.xyz_unfiltered[xyindex2]
 
-        list_query_idx =[m.queryIdx for m in matches]
-        list_train_idx =[m.queryIdx for m in matches]
+        list_query_idx = [m.queryIdx for m in matches]
+        list_train_idx = [m.queryIdx for m in matches]
         if len(list_train_idx) != len(set(list_train_idx)):
             print("ids are not unique")
-
 
         for i in xyindex1:
             pos = np.where(head1.xy_mesh == i)
@@ -66,8 +71,6 @@ class MultiHead():
             pos = np.where(head2.xy_mesh == i)
             head2.rgb[pos] = [0, 0, 1]
             head2.xyz
-
-
 
         # todo, make list of points unique
 
@@ -91,14 +94,18 @@ class MultiHead():
 
         self.spheres = head1.spheres + head2.spheres
         pickle.dump(self.spheres, open("head_spheres.p", 'wb'))
+
     def icp_transform(self,index1,index2):
         # perform one iteration of icp algorithm
-        head1= self.heads[index1]
-        head2= self.heads[index2]
+        head1 = self.heads[index1]
+        head2 = self.heads[index2]
         print(index1)
-        # T, distance, ite = icp.icp(head1.xyz, head2.xyz)
+        T, distance, ite = icp.icp(head1.xyz, head2.xyz)
         # print(distance)
         # head2.transform(T)
+        # print("hallo")
+        # print(self.heads)
+        return
 
     def save_spheres(self):
         pickle.dump(self.spheres, open("head_spheres.p", 'wb'))

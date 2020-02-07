@@ -36,6 +36,8 @@ def get_matched_points(img1, kp1, des1, img2, kp2, des2,ratio=0.75):
 
     # cv2.drawMatchesKnn expects list of lists as matches.
     img3 = cv2.drawMatchesKnn(img1,kp1,img2,kp2,good,None,flags=2)
+
+
     plt.imshow(img3),plt.show()
     plt.imsave("des_match.png",img3)
     return good_without_list

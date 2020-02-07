@@ -389,7 +389,7 @@ class threeD_head():
                 rad = 0.0015
             self.spheres.append({'pos':next, 'radius':rad, 'color':(vec(self.rgb[i,0],self.rgb[i,1],self.rgb[i,2]))})
 
-    def save(self, file_name='head.p'):
+    def save(self, file_name=None):
         '''
         :param file_name:
         :return:
