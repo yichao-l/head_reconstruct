@@ -9,7 +9,7 @@ from SIFT import *
 
 def float_2_rgb(num):
     packed = struct.pack('!f', num)
-    return [c for c in packed][1:]        
+    return [c for c in packed][1:]
         
 class threeD_head():
     def __init__(self, data_path=None):
@@ -45,13 +45,17 @@ class threeD_head():
         return this
 
     @classmethod
+    def load_from_pickle(cls, sequence_id, frame_id):
+            return cls.load(f"head{sequence_id}_{frame_id}.p")
+
+    @classmethod
     def load(cls, data_file='head.p'):
         '''
         :param data_file:  file to load from, default name is the default file used for saving
         :return: object of  threeD_head class
         '''
         try:
-            with open('head.p', 'rb') as file_object:
+            with open(data_file, 'rb') as file_object:
                 raw_data = file_object.read()
             return pickle.loads(raw_data)
         except:
@@ -142,12 +146,6 @@ class threeD_head():
         '''
         self.xyz= self.xyz.dot(c*R)+t
 
-    # def transform(self, T):
-    #     '''
-    #     transform the image: 
-    #     '''
-    #     self.xyz= self.xyz.dot(T)
-
     def paint(self, color):
         '''
         transform the image:  XYZ*cR + t
@@ -169,7 +167,6 @@ class threeD_head():
         self.center()
         self.create_vpython_spheres()
         self.save()
-
 
 
 
@@ -212,6 +209,7 @@ class threeD_head():
         '''
         self.center_pos= self.xyz.mean(axis=0)
         self.xyz = self.xyz - self.center_pos
+        self.xyz_unfiltered = self.xyz_unfiltered - self.center_pos
 
     def remove_dangling(self):
         filter =np.ones(self.xy_mesh.shape) >0
@@ -388,7 +386,7 @@ class threeD_head():
             elif np.all(self.rgb[i] == [0, 0, 1]):
                 rad = 0.005
             else:
-                rad = 0.003
+                rad = 0.0015
             self.spheres.append({'pos':next, 'radius':rad, 'color':(vec(self.rgb[i,0],self.rgb[i,1],self.rgb[i,2]))})
 
     def save(self, file_name='head.p'):
@@ -396,5 +394,9 @@ class threeD_head():
         :param file_name:
         :return:
         '''
+        if file_name is None:
+            file_name=f"head{self.sequence_id}_{self.frame_id}.p"
         pickle.dump(self, open(file_name, 'wb'))
+        data_file="head_spheres.p"
+        pickle.dump(self.spheres, open(data_file, 'wb'))
 

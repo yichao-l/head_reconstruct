@@ -10,7 +10,7 @@ import struct
 from vpython import *
 import pickle
 
-head = HEAD_RECON.threeD_head.load()
+
 scene.width = scene.height = 800
 scene.background = color.white
 scene.range = 0.3
@@ -28,12 +28,17 @@ def Runbutton(b):
 
 def Readbutton(b):
     global c
-    with open('head.p', 'rb') as file_object:
-        raw_data = file_object.read()
-    head = HEAD_RECON.threeD_head.load()
+    data_file='head_spheres.p'
+    try:
+        with open(data_file, 'rb') as file_object:
+            raw_data = file_object.read()
+        spheres= pickle.loads(raw_data)
+    except:
+        raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
+
     c.visible=False
     del c
-    c = points(pos=head.spheres, size_units='world')
+    c = points(pos=spheres, size_units='world')
 
 
 button(text='Run', bind=Runbutton)
@@ -45,7 +50,15 @@ Middle button or Alt-drag to drag up or down to zoom in or out.
   On a two-button mouse, middle is left + right.
 Touch screen: pinch/extend to zoom, swipe or two-finger rotate.""")
 
-c = points(pos=head.spheres, size_units='world')
+data_file = 'head_spheres.p'
+try:
+    with open(data_file, 'rb') as file_object:
+        raw_data = file_object.read()
+    spheres = pickle.loads(raw_data)
+except:
+    raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
+
+c = points(pos=spheres, size_units='world')
 
 while True:
     rate(20)

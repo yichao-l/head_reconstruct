@@ -1,4 +1,6 @@
 from Procrustes2 import *
+import  HEAD_RECON
+import pickle
 import HEAD_RECON
 import icp
 from SIFT import *
@@ -6,7 +8,6 @@ from SIFT import *
 class MultiHead():
     def __init__(self):
         self.heads=[]
-
 
     @classmethod
     def joined_heads(cls, head1, head2):
@@ -31,14 +32,14 @@ class MultiHead():
         head1.reset_colors()
         head2.reset_colors()
         # code below can be used to create
-        # head1.paint([1, 0, 0])
-        # head2.paint([1,1,0])
+        head1.paint([0, 0, 1])
+        head2.paint([1,1,0])
         head1.reset_positions()
         head2.reset_positions()
         head1.center()
         head2.center()
 
-        matches = cleaned_match
+        matches = cleaned_match[2:]
         pts1 = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
         xy1 = np.round(pts1).astype("int").reshape(-1, 2)
         xyindex1 = xy1[:, 1] * 640 + xy1[:, 0]
@@ -48,6 +49,12 @@ class MultiHead():
         xy2 = np.round(pts2).astype("int").reshape(-1, 2)
         xyindex2 = xy2[:, 1] * 640 + xy2[:, 0]
         xyz2 = head2.xyz_unfiltered[xyindex2]
+
+        list_query_idx =[m.queryIdx for m in matches]
+        list_train_idx =[m.queryIdx for m in matches]
+        if len(list_train_idx) != len(set(list_train_idx)):
+            print("ids are not unique")
+
 
         for i in xyindex1:
             pos = np.where(head1.xy_mesh == i)
@@ -60,10 +67,14 @@ class MultiHead():
             head2.rgb[pos] = [0, 0, 1]
             head2.xyz
 
+
+
         # todo, make list of points unique
 
-        A = head1.xyz_unfiltered[xyindex1][1:] - head1.center_pos
-        B = head2.xyz_unfiltered[xyindex2][1:] - head2.center_pos
+        A = head1.xyz_unfiltered[xyindex1] - head1.center_pos
+        B = head2.xyz_unfiltered[xyindex2] - head2.center_pos
+        print(A)
+        print(B)
 
         # todo, set scaling to false
         d, Z, tform = procrustes(A, B, scaling=True, reflection='best')
@@ -71,13 +82,15 @@ class MultiHead():
         R, c, t = tform['rotation'], tform['scale'], tform['translation']
 
         head2.transform(R, c, t)
-        
+
         head1.create_vpython_spheres()
         head2.create_vpython_spheres()
         # todo create spheres as part ofthe mulit-head object
-        head1.spheres = head1.spheres + head2.spheres
         head1.save()
+        head2.save()
 
+        self.spheres = head1.spheres + head2.spheres
+        pickle.dump(self.spheres, open("head_spheres.p", 'wb'))
     def icp_transform(self,index1,index2):
         # perform one iteration of icp algorithm
         head1= self.heads[index1]
@@ -86,3 +99,6 @@ class MultiHead():
         # T, distance, ite = icp.icp(head1.xyz, head2.xyz)
         # print(distance)
         # head2.transform(T)
+
+    def save_spheres(self):
+        pickle.dump(self.spheres, open("head_spheres.p", 'wb'))

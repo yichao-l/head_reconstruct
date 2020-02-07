@@ -38,7 +38,6 @@ def umeyama(P, Q):
 
     return c, R, t
 
-
 # Testing
 
 np.set_printoptions(precision=3)
