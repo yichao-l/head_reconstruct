@@ -1,6 +1,7 @@
-
 from Procrustes2 import *
-import  HEAD_RECON
+import HEAD_RECON
+import icp
+from SIFT import *
 
 class MultiHead():
     def __init__(self):
@@ -21,11 +22,11 @@ class MultiHead():
 
         img1, path1 = head1.get_filtered_image()
         img2, path2 = head2.get_filtered_image()
-        kp1, des1 = HEAD_RECON.estimate_frame_transform.get_descriptors(path1)
-        kp2, des2 = HEAD_RECON.estimate_frame_transform.get_descriptors(path2)
-        good_without_list = HEAD_RECON.estimate_frame_transform.get_matched_points(path1,kp1,des1,path2,kp2,des2,0.8)
+        kp1, des1 = get_descriptors(path1)
+        kp2, des2 = get_descriptors(path2)
+        good_without_list = get_matched_points(path1,kp1,des1,path2,kp2,des2,0.8)
 
-        cleaned_match = HEAD_RECON.estimate_frame_transform.clean_matches(kp1,path1,kp2,path2,good_without_list)
+        cleaned_match = clean_matches(kp1,path1,kp2,path2,good_without_list)
 
         head1.reset_colors()
         head2.reset_colors()
@@ -70,9 +71,18 @@ class MultiHead():
         R, c, t = tform['rotation'], tform['scale'], tform['translation']
 
         head2.transform(R, c, t)
+        
         head1.create_vpython_spheres()
         head2.create_vpython_spheres()
         # todo create spheres as part ofthe mulit-head object
         head1.spheres = head1.spheres + head2.spheres
         head1.save()
 
+    def icp_transform(self,index1,index2):
+        # perform one iteration of icp algorithm
+        head1= self.heads[index1]
+        head2= self.heads[index2]
+        print(index1)
+        # T, distance, ite = icp.icp(head1.xyz, head2.xyz)
+        # print(distance)
+        # head2.transform(T)
