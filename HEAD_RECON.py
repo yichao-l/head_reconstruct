@@ -146,6 +146,15 @@ class threeD_head():
         '''
         self.xyz= self.xyz.dot(c*R)+t
 
+    def transform_homo(self, T):
+        '''
+        transform the image:  XYZ*T
+        '''
+        ones = np.ones((1,self.xyz.shape[0]))
+        self.xyz = np.concatenate((self.xyz, ones.T), axis=1)
+        self.xyz = self.xyz.dot(T)
+        self.xyz = self.xyz[:,:3]
+
     def paint(self, color):
         '''
         transform the image:  XYZ*cR + t

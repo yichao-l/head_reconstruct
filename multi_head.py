@@ -1,10 +1,4 @@
 from Procrustes2 import *
-<<<<<<< HEAD
-||||||| merged common ancestors
-import  HEAD_RECON
-=======
-import HEAD_RECON
->>>>>>> c29c027f1b51e51130dc8ac34e1c24e8facbd5bb
 import pickle
 import HEAD_RECON
 import icp
@@ -70,7 +64,7 @@ class MultiHead():
             pos = np.where(head1.xy_mesh == i)
             head1.rgb[pos] = [0, 1, 0]
         head1.create_vpython_spheres()
-        head1.save()
+        # head1.save()
 
         for i in xyindex2:
             pos = np.where(head2.xy_mesh == i)
@@ -94,39 +88,38 @@ class MultiHead():
         head1.create_vpython_spheres()
         head2.create_vpython_spheres()
         # todo create spheres as part ofthe mulit-head object
-        head1.save()
-        head2.save()
+        # head1.save()
+        # head2.save()
 
         self.spheres = head1.spheres + head2.spheres
         pickle.dump(self.spheres, open("head_spheres.p", 'wb'))
-<<<<<<< HEAD
-    
-    def icp_transformA(self):
-        
-        print("hello")
-||||||| merged common ancestors
-    def icp_transform(self,index1,index2):
-        # perform one iteration of icp algorithm
-        head1= self.heads[index1]
-        head2= self.heads[index2]
-        print(index1)
-        # T, distance, ite = icp.icp(head1.xyz, head2.xyz)
-        # print(distance)
-        # head2.transform(T)
-=======
 
-    def icp_transform(self,index1,index2):
+    def icp_transform(self,index1,index2,r=0.01,file_name='after_icp.p'):
+        '''
+        param:
+        r (float): sampleing rate for head1 
+        file_name (string): file name of combined spheres
+        '''
         # perform one iteration of icp algorithm
         head1 = self.heads[index1]
         head2 = self.heads[index2]
-        print(index1)
-        T, distance, ite = icp.icp(head1.xyz, head2.xyz)
-        # print(distance)
-        # head2.transform(T)
-        # print("hallo")
-        # print(self.heads)
+
+        # sample both array to the same size
+        n_sample = int(head1.xyz.shape[0]*r)
+        n_1 = head1.xyz.shape[0]
+        n_2 = head2.xyz.shape[0] 
+        sample_1 = np.random.choice(np.arange(n_1),n_sample)
+        sample_2 = np.random.choice(np.arange(n_2),n_sample) 
+        T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2])
+        head2.transform_homo(T)
+
+        head1.create_vpython_spheres()
+        head2.create_vpython_spheres()
+        self.spheres = head1.spheres + head2.spheres
+        pickle.dump(self.spheres, open(file_name, 'wb'))
+        print("icp processing done.")
+
         return
->>>>>>> c29c027f1b51e51130dc8ac34e1c24e8facbd5bb
 
     def save_spheres(self):
         pickle.dump(self.spheres, open("head_spheres.p", 'wb'))

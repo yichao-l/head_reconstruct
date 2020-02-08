@@ -50,7 +50,7 @@ Middle button or Alt-drag to drag up or down to zoom in or out.
   On a two-button mouse, middle is left + right.
 Touch screen: pinch/extend to zoom, swipe or two-finger rotate.""")
 
-data_file = 'head_spheres.p'
+data_file = 'after_icp.p'
 try:
     with open(data_file, 'rb') as file_object:
         raw_data = file_object.read()
