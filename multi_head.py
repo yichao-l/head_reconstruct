@@ -39,7 +39,7 @@ class MultiHead():
         img2, path2 = head2.get_filtered_image()
         kp1, des1 = get_descriptors(path1)
         kp2, des2 = get_descriptors(path2)
-        good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, 0.8)
+        good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, 0.9)
 
         cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list)
 
@@ -74,18 +74,17 @@ class MultiHead():
         indices2=[np.argwhere(head2.xy_mesh==ind) for ind in xyindex2]
         filter2=[len(ind) >0 for ind in indices2]
         filter = np.asarray(filter1) & np.asarray(filter2)
-        print (filter)
+        # print (filter)
 
-        indices1=np.asarray(indices1)[filter]
-        print(indices1)
-        indices2=np.asarray(indices2)[filter]
-        print([ind[0][0] for ind in indices1])
+        indices1 = np.asarray(indices1)[filter]
+        # print(indices1)
+        indices2 = np.asarray(indices2)[filter]
+        # print([ind[0][0] for ind in indices1])
         xyz1 = np.asarray([head1.xyz[ind[0][0]] for ind in indices1])
         xyz2 = np.asarray([head2.xyz[ind[0][0]] for ind in indices2])
 
-
-        print(xyz1)
-        print(xyz2)
+        # print(xyz1)
+        # print(xyz2)
 
         # xyz2 = head2.xyz_unfiltered[xyindex2]
         #
@@ -99,39 +98,26 @@ class MultiHead():
         list_train_idx = [matches[i].trainIdx for i in range(len(matches)) if filter[i]]
         list_query_idx = [matches[i].queryIdx for i in range(len(matches)) if filter[i]]
 
-
         # list_train_idx = [m.queryIdx for m in matches]
-
 
         if len(list_train_idx) != len(set(list_train_idx)):
             print("ids are not unique")
 
+        # creating markers
         for i in xyindex1:
             pos = np.where(head1.xy_mesh == i)
             head1.rgb[pos] = [0, 1, 0]
-        head1.create_vpython_spheres()
-
 
         for i in xyindex2:
             pos = np.where(head2.xy_mesh == i)
             head2.rgb[pos] = [0, 0, 1]
-            head2.xyz
 
-        # todo, make list of points unique
-
-        A = head1.xyz_unfiltered[xyindex1] - head1.center_pos
-        B = head2.xyz_unfiltered[xyindex2] - head2.center_pos
-        print(A)
-        print(B)
-
-
-        d, Z, tform = procrustes(A, B, scaling=False, reflection='best')
+        d, Z, tform = procrustes(xyz1, xyz2, scaling=False, reflection='best')
 
         R, c, t = tform['rotation'], tform['scale'], tform['translation']
 
         head2.transform(R, c, t)
-        self.create_spheres()
-        self.save()
+
 
     def icp_transform(self,index1,index2,r=0.01,file_name='after_icp.p'):
         '''
@@ -151,20 +137,24 @@ class MultiHead():
         sample_2 = np.random.choice(np.arange(n_2),n_sample) 
         T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2])
         head2.transform_homo(T)
-        self.create_spheres()
-        self.save()
+
         return
 
     def save_spheres(self):
         pickle.dump(self.spheres, open("pickled_head\head_spheres.p", 'wb'))
 
-    def create_spheres(self):
-        self.spheres=[]
+    def create_spheres(self, sparcity=1.0):
+        self.spheres = []
         for head in self.heads:
-            head.create_vpython_spheres()
+            if sparcity < 1:
+                head.sparsify(sparcity)
+
+                head.create_vpython_spheres(force_sparce=True)
+            else:
+                head.create_vpython_spheres(force_sparce=False)
             self.spheres += head.spheres
 
-    def save(self):
+    def save(self, sparcity=1.0):
+        self.create_spheres(sparcity)
         self.save_spheres()
         pickle.dump(self, open(f"pickled_head\mhead{self.heads[0].sequence_id}.p", 'wb'))
-

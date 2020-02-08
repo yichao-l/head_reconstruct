@@ -66,7 +66,7 @@ def nearest_neighbor(src, dst):
     return distances.ravel(), indices.ravel()
 
 
-def icp(A, B, init_pose=None, max_iterations=2, tolerance=0.001):
+def icp(A, B, init_pose=None, max_iterations=4, tolerance=0.001):
     '''
     The Iterative Closest Point method: finds best-fit transform that maps points A on to points B
     Input:
@@ -101,7 +101,7 @@ def icp(A, B, init_pose=None, max_iterations=2, tolerance=0.001):
     for i in range(max_iterations):
         # find the nearest neighbors between the current source and destination points
         distances, indices = nearest_neighbor(src[:m,:].T, dst[:m,:].T)
-        print("step: ", i , "before: ", np.linalg.norm(distances))
+        print("step: ", i, "before: ", np.mean(distances))
         # compute the transformation between the current source and nearest destination points
         T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
         print("found the best fit transform",i)
