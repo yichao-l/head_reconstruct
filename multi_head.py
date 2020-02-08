@@ -92,9 +92,9 @@ class MultiHead():
         # head2.save()
 
         self.spheres = head1.spheres + head2.spheres
-        pickle.dump(self.spheres, open("before_icp.p", 'wb'))
+        pickle.dump(self.spheres, open("pickled_head/before_icp.p", 'wb'))
 
-    def icp_transform(self,index1,index2,r=0.01,file_name='after_icp.p'):
+    def icp_transform(self,index1,index2,r=0.01,file_name='pickled_head/after_icp.p'):
         '''
         param:
         r (float): sampleing rate for head1 
