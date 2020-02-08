@@ -82,6 +82,8 @@ def icp(A, B, init_pose=None, max_iterations=5, tolerance=0.001):
         i: number of iterations to converge
     '''
 
+
+
     assert A.shape == B.shape
 
     # get number of dimensions
