@@ -28,13 +28,7 @@ def Runbutton(b):
 
 def Readbutton(b):
     global c
-<<<<<<< HEAD
     data_file='pickled_head/head_spheres.p'
-||||||| merged common ancestors
-    data_file='head_spheres.p'
-=======
-    data_file='pickled_head\head_spheres.p'
->>>>>>> 4e24cf9942fd5a0bcacf30cd730ee3082248441f
     try:
         with open(data_file, 'rb') as file_object:
             raw_data = file_object.read()
@@ -56,14 +50,7 @@ Middle button or Alt-drag to drag up or down to zoom in or out.
   On a two-button mouse, middle is left + right.
 Touch screen: pinch/extend to zoom, swipe or two-finger rotate.""")
 
-<<<<<<< HEAD
 data_file = 'pickled_head/head_spheres.p'
-||||||| merged common ancestors
-data_file = 'head_spheres1_3.p'
-=======
-data_file = 'pickled_head\head_spheres.p'
-
->>>>>>> 4e24cf9942fd5a0bcacf30cd730ee3082248441f
 try:
     with open(data_file, 'rb') as file_object:
         raw_data = file_object.read()

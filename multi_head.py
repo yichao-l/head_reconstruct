@@ -117,8 +117,8 @@ class MultiHead():
         R, c, t = tform['rotation'], tform['scale'], tform['translation']
 
         head2.transform(R, c, t)
-<<<<<<< HEAD
-<<<<<<< HEAD
+
+
 
         head1.create_vpython_spheres()
         head2.create_vpython_spheres()
@@ -127,8 +127,7 @@ class MultiHead():
         # head2.save()
 
         self.spheres = head1.spheres + head2.spheres
-        pickle.dump(self.spheres, open("pickled_head/before_icp.p", 'wb'))
-||||||| merged common ancestors
+
 
         head1.create_vpython_spheres()
         head2.create_vpython_spheres()
@@ -137,17 +136,9 @@ class MultiHead():
         # head2.save()
 
         self.spheres = head1.spheres + head2.spheres
-        pickle.dump(self.spheres, open("before_icp.p", 'wb'))
-=======
-        self.create_spheres()
-        self.save()
->>>>>>> 4e24cf9942fd5a0bcacf30cd730ee3082248441f
-||||||| merged common ancestors
-        self.create_spheres()
-        self.save()
-=======
 
->>>>>>> 4a1b94be7526c73c546b265f076d5cc4d28747ac
+        self.create_spheres()
+        self.save()
 
     def icp_transform(self,index1,index2,r=0.01,file_name='pickled_head/after_icp.p'):
         '''
@@ -171,7 +162,7 @@ class MultiHead():
         return
 
     def save_spheres(self):
-        pickle.dump(self.spheres, open("pickled_head\head_spheres.p", 'wb'))
+        pickle.dump(self.spheres, open("pickled_head/head_spheres.p", 'wb'))
 
     def create_spheres(self, sparcity=1.0):
         self.spheres = []
@@ -187,4 +178,4 @@ class MultiHead():
     def save(self, sparcity=1.0):
         self.create_spheres(sparcity)
         self.save_spheres()
-        pickle.dump(self, open(f"pickled_head\mhead{self.heads[0].sequence_id}.p", 'wb'))
+        pickle.dump(self, open(f"pickled_head/mhead{self.heads[0].sequence_id}.p", 'wb'))

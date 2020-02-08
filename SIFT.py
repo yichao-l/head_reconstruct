@@ -17,7 +17,7 @@ def get_descriptors(img_path):
     # img = cv2.drawKeypoints(gray,kp,img)        
     return kp, des
 
-def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=1):
+def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=0.7):
     '''
     find a set of good matching descriptors given two set of keypoints and descriptors
     '''
@@ -25,7 +25,7 @@ def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=1):
     img2 = cv2.imread(img2)
     bf = cv2.BFMatcher()
     matches = bf.knnMatch(des1, des2, k=2)
-
+    cv2.imwrite("img1.png",img1)
     # Apply ratio test
     good = []
     good_without_list = []
@@ -39,11 +39,11 @@ def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=1):
 
 
     plt.imshow(img3),plt.show()
-    plt.imsave("des_match.png",img3)
+    cv2.imwrite("des_match.png",img3)
     return good_without_list
 
 
-def clean_matches(kp1, img1, kp2, img2, matches, min_match=5):
+def clean_matches(kp1, img1, kp2, img2, matches, min_match=8):
     '''
     param:
         matches (list(DMatch)): a list of matching object
@@ -59,7 +59,7 @@ def clean_matches(kp1, img1, kp2, img2, matches, min_match=5):
         src_pts = np.float32([ kp1[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
         dst_pts = np.float32([ kp2[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
 
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,10)
         matchesMask = mask.ravel().tolist()
 
         h,w = img1.shape
@@ -82,7 +82,7 @@ def clean_matches(kp1, img1, kp2, img2, matches, min_match=5):
                 flags = 2)
 
     img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches,None,**draw_params)
-    plt.imsave("des_match_cleaned.png",img3)
+    cv2.imwrite("des_match_cleaned.png",img3)
     plt.imshow(img3, 'gray'),plt.show()
 
     return cleaned_matches
