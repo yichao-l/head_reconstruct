@@ -81,7 +81,7 @@ def clean_matches(kp1,img1,kp2,img2,matches,min_match=10):
                 flags = 2)
 
     img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches,None,**draw_params)
-
+    plt.imsave("des_match_cleaned.png",img3)
     plt.imshow(img3, 'gray'),plt.show()
 
     return cleaned_matches

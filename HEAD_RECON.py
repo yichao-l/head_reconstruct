@@ -381,8 +381,6 @@ class threeD_head():
             self.rgb = self.rgb[filter]
             # print(self.rgb.shape)
 
-
-
     def create_vpython_spheres(self):
         '''
         creates the spheres that can be used by vpython
@@ -407,8 +405,8 @@ class threeD_head():
         :return:
         '''
         if file_name is None:
-            file_name=f"head{self.sequence_id}_{self.frame_id}.p"
+            file_name=f"pickled_head/head{self.sequence_id}_{self.frame_id}.p"
         pickle.dump(self, open(file_name, 'wb'))
-        data_file="head_spheres.p"
+        data_file=f"pickled_head/head_spheres{self.sequence_id}_{self.frame_id}.p"
         pickle.dump(self.spheres, open(data_file, 'wb'))
 
