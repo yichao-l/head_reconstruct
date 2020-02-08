@@ -210,11 +210,11 @@ class threeD_head():
         :param sparsity: the fraction of pixles that is retained
         :return: updates the object
         '''
-        l=self.xyz.shape[0]
+        l = self.xyz.shape[0]
         filter = np.random.random((l)) < sparsity
-        self.xy_mesh=self.xy_mesh[filter]
-        self.xyz = self.xyz[filter]
-        self.rgb = self.rgb[filter]
+        self.sparse_xy_mesh = self.xy_mesh[filter]
+        self.sparse_xyz = self.xyz[filter]
+        self.sparse_rgb = self.rgb[filter]
 
     def center(self):
         '''
@@ -383,23 +383,31 @@ class threeD_head():
             self.rgb = self.rgb[filter]
             # print(self.rgb.shape)
 
-    def create_vpython_spheres(self):
+    def create_vpython_spheres(self, force_sparce=False):
         '''
         creates the spheres that can be used by vpython
         :return:
         '''
+        if force_sparce:
+            sparce_xyz = self.sparse_xyz
+            sparce_rgb = self.sparse_rgb
+        else:
+            sparce_xyz = self.xyz
+            sparce_rgb = self.rgb
+
         self.spheres = []
-        for i in range(self.xyz.shape[0]):
-            next = vec(self.xyz[i,0],-self.xyz[i,1],-self.xyz[i,2])
-            if np.all(self.rgb[i]==[0,1,0]):
-                rad=0.005
-            elif np.all(self.rgb[i] == [1, 0, 0]):
+        for i in range(sparce_xyz.shape[0]):
+            next = vec(sparce_xyz[i, 0], -sparce_xyz[i, 1], -sparce_xyz[i, 2])
+            if np.all(sparce_rgb[i] == [0, 1, 0]):
                 rad = 0.005
-            elif np.all(self.rgb[i] == [0, 0, 1]):
+            elif np.all(sparce_rgb[i] == [1, 0, 0]):
+                rad = 0.005
+            elif np.all(sparce_rgb[i] == [0, 0, 1]):
                 rad = 0.005
             else:
                 rad = 0.0015
-            self.spheres.append({'pos':next, 'radius':rad, 'color':(vec(self.rgb[i,0],self.rgb[i,1],self.rgb[i,2]))})
+            self.spheres.append(
+                {'pos': next, 'radius': rad, 'color': (vec(sparce_rgb[i, 0], sparce_rgb[i, 1], sparce_rgb[i, 2]))})
 
     def save(self, file_name=None):
         '''

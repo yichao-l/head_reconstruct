@@ -17,14 +17,14 @@ def get_descriptors(img_path):
     # img = cv2.drawKeypoints(gray,kp,img)        
     return kp, des
 
-def get_matched_points(img1, kp1, des1, img2, kp2, des2,ratio=0.75):
+def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=1):
     '''
     find a set of good matching descriptors given two set of keypoints and descriptors
     '''
     img1 = cv2.imread(img1)
     img2 = cv2.imread(img2)
     bf = cv2.BFMatcher()
-    matches = bf.knnMatch(des1,des2, k=2)
+    matches = bf.knnMatch(des1, des2, k=2)
 
     # Apply ratio test
     good = []
@@ -42,7 +42,8 @@ def get_matched_points(img1, kp1, des1, img2, kp2, des2,ratio=0.75):
     plt.imsave("des_match.png",img3)
     return good_without_list
 
-def clean_matches(kp1,img1,kp2,img2,matches,min_match=10):
+
+def clean_matches(kp1, img1, kp2, img2, matches, min_match=5):
     '''
     param:
         matches (list(DMatch)): a list of matching object
@@ -51,8 +52,8 @@ def clean_matches(kp1,img1,kp2,img2,matches,min_match=10):
     '''
     img1 = cv2.imread(img1)
     img2 = cv2.imread(img2)
-    img1 = cv2.cvtColor(img1,cv2.COLOR_BGR2GRAY)
-    img2 = cv2.cvtColor(img2,cv2.COLOR_BGR2GRAY)
+    img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
     MIN_MATCH_COUNT = min_match
     if len(matches)>MIN_MATCH_COUNT:
         src_pts = np.float32([ kp1[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
@@ -68,7 +69,7 @@ def clean_matches(kp1,img1,kp2,img2,matches,min_match=10):
         img2 = cv2.polylines(img2,[np.int32(dst)],True,255,3, cv2.LINE_AA)
 
     else:
-        print ("Not enough matches are found - %d/%d, turn up the match ratio." % (len(good),MIN_MATCH_COUNT))
+        print("Not enough matches are found - %d/%d, turn up the match ratio." % (len(matches), MIN_MATCH_COUNT))
         matchesMask = None
 
     mask = np.array(matchesMask)
