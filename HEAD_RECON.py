@@ -104,6 +104,8 @@ class threeD_head():
         self.xyz=self.xyz_unfiltered
         self.rgb=self.rgb_unfiltered
 
+
+
     def reset_positions(self):
         '''
         Resets all the filters
@@ -160,8 +162,8 @@ class threeD_head():
         transform the image:  XYZ*cR + t
         '''
         color=np.asarray(color).reshape(-1)
-        self.rgb = self.rgb.mean(axis=1).reshape((-1,1)).dot(np.asarray([[1,1,1]])) * color
-
+        # self.rgb = self.rgb.mean(axis=1).reshape((-1,1)).dot(np.asarray([[1,1,1]])) * color
+        self.rgb = self.rgb.mean(axis=1).reshape((-1,1)).dot(np.asarray([[0,0,0]])) + color
 
     def full_filter(self,  depth=1.5):
         # perform thresholding in depth axis, remove the nan pixels

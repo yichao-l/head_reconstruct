@@ -14,12 +14,21 @@ class MultiHead():
     def joined_heads(cls, head1, head2):
 
         this= cls()
+        head1.reset_positions()
+        head2.reset_positions()
+        head1.center()
+        head2.center()
         this.heads.append(head1)
         this.heads.append(head2)
         this.join_heads(0, 1)
         return this
 
-
+    def append_head(self, head):
+        head.reset_positions()
+        head.center()
+        # head1.center()
+        # head2.center()
+        self.heads.append(head)
 
 
     def join_heads(self, index1, index2):
@@ -34,29 +43,66 @@ class MultiHead():
 
         cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list)
 
-        head1.reset_colors()
-        head2.reset_colors()
+        # head1.reset_colors()
+        # head2.reset_colors()
         # code below can be used to create
         # head1.paint([0, 0, 1])
         # head2.paint([1, 1, 0])
-        head1.reset_positions()
-        head2.reset_positions()
-        head1.center()
-        head2.center()
+        # head1.reset_positions()
+        # head2.reset_positions()
+        # head1.center()
+        # head2.center()
 
         matches = cleaned_match[2:]
         pts1 = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
         xy1 = np.round(pts1).astype("int").reshape(-1, 2)
         xyindex1 = xy1[:, 1] * 640 + xy1[:, 0]
+        indices1=[np.argwhere(head1.xy_mesh==ind) for ind in xyindex1]
+        filter1=[len(ind) >0 for ind in indices1]
+
+
+
         xyz1 = head1.xyz_unfiltered[xyindex1]
+        # xyz1 = head1.xyz[[xyindex1]
+
+
+
 
         pts2 = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
         xy2 = np.round(pts2).astype("int").reshape(-1, 2)
         xyindex2 = xy2[:, 1] * 640 + xy2[:, 0]
-        xyz2 = head2.xyz_unfiltered[xyindex2]
+        indices2=[np.argwhere(head2.xy_mesh==ind) for ind in xyindex2]
+        filter2=[len(ind) >0 for ind in indices2]
+        filter = np.asarray(filter1) & np.asarray(filter2)
+        print (filter)
 
-        list_query_idx = [m.queryIdx for m in matches]
-        list_train_idx = [m.queryIdx for m in matches]
+        indices1=np.asarray(indices1)[filter]
+        print(indices1)
+        indices2=np.asarray(indices2)[filter]
+        print([ind[0][0] for ind in indices1])
+        xyz1 = np.asarray([head1.xyz[ind[0][0]] for ind in indices1])
+        xyz2 = np.asarray([head2.xyz[ind[0][0]] for ind in indices2])
+
+
+        print(xyz1)
+        print(xyz2)
+
+        # xyz2 = head2.xyz_unfiltered[xyindex2]
+        #
+        # print(~np.isnan(xyz1).any(axis=1))
+        # print(~np.isnan(xyz2).any(axis=1))
+        # filter =~np.isnan(xyz1).any(axis=1) & ~np.isnan(xyz2).any(axis=1)
+
+        # xyindex1=xyindex2[filter]
+        # xyindex2=xyindex2[filter]
+
+        list_train_idx = [matches[i].trainIdx for i in range(len(matches)) if filter[i]]
+        list_query_idx = [matches[i].queryIdx for i in range(len(matches)) if filter[i]]
+
+
+        # list_train_idx = [m.queryIdx for m in matches]
+
+
         if len(list_train_idx) != len(set(list_train_idx)):
             print("ids are not unique")
 
@@ -64,7 +110,7 @@ class MultiHead():
             pos = np.where(head1.xy_mesh == i)
             head1.rgb[pos] = [0, 1, 0]
         head1.create_vpython_spheres()
-        # head1.save()
+
 
         for i in xyindex2:
             pos = np.where(head2.xy_mesh == i)
@@ -84,15 +130,8 @@ class MultiHead():
         R, c, t = tform['rotation'], tform['scale'], tform['translation']
 
         head2.transform(R, c, t)
-
-        head1.create_vpython_spheres()
-        head2.create_vpython_spheres()
-        # todo create spheres as part of the mulit-head object
-        # head1.save()
-        # head2.save()
-
-        self.spheres = head1.spheres + head2.spheres
-        pickle.dump(self.spheres, open("before_icp.p", 'wb'))
+        self.create_spheres()
+        self.save()
 
     def icp_transform(self,index1,index2,r=0.01,file_name='after_icp.p'):
         '''
@@ -111,16 +150,21 @@ class MultiHead():
         sample_1 = np.random.choice(np.arange(n_1),n_sample)
         sample_2 = np.random.choice(np.arange(n_2),n_sample) 
         T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2])
-
-
         head2.transform_homo(T)
-
-        head1.create_vpython_spheres()
-        head2.create_vpython_spheres()
-        self.spheres = head1.spheres + head2.spheres
-        pickle.dump(self.spheres, open(file_name, 'wb'))
-        print("icp processing done.")
+        self.create_spheres()
+        self.save()
         return
 
     def save_spheres(self):
-        pickle.dump(self.spheres, open("head_spheres.p", 'wb'))
+        pickle.dump(self.spheres, open("pickled_head\head_spheres.p", 'wb'))
+
+    def create_spheres(self):
+        self.spheres=[]
+        for head in self.heads:
+            head.create_vpython_spheres()
+            self.spheres += head.spheres
+
+    def save(self):
+        self.save_spheres()
+        pickle.dump(self, open(f"pickled_head\mhead{self.heads[0].sequence_id}.p", 'wb'))
+
