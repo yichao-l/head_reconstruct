@@ -37,8 +37,8 @@ class MultiHead():
         head1.reset_colors()
         head2.reset_colors()
         # code below can be used to create
-        head1.paint([0, 0, 1])
-        head2.paint([1, 1, 0])
+        # head1.paint([0, 0, 1])
+        # head2.paint([1, 1, 0])
         head1.reset_positions()
         head2.reset_positions()
         head1.center()
@@ -78,8 +78,8 @@ class MultiHead():
         print(A)
         print(B)
 
-        # todo, set scaling to false
-        d, Z, tform = procrustes(A, B, scaling=True, reflection='best')
+
+        d, Z, tform = procrustes(A, B, scaling=False, reflection='best')
 
         R, c, t = tform['rotation'], tform['scale'], tform['translation']
 
@@ -87,7 +87,7 @@ class MultiHead():
 
         head1.create_vpython_spheres()
         head2.create_vpython_spheres()
-        # todo create spheres as part ofthe mulit-head object
+        # todo create spheres as part of the mulit-head object
         # head1.save()
         # head2.save()
 
@@ -111,6 +111,8 @@ class MultiHead():
         sample_1 = np.random.choice(np.arange(n_1),n_sample)
         sample_2 = np.random.choice(np.arange(n_2),n_sample) 
         T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2])
+
+
         head2.transform_homo(T)
 
         head1.create_vpython_spheres()
@@ -118,7 +120,6 @@ class MultiHead():
         self.spheres = head1.spheres + head2.spheres
         pickle.dump(self.spheres, open(file_name, 'wb'))
         print("icp processing done.")
-
         return
 
     def save_spheres(self):

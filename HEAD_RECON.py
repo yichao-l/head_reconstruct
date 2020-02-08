@@ -46,7 +46,7 @@ class threeD_head():
 
     @classmethod
     def load_from_pickle(cls, sequence_id, frame_id):
-            return cls.load(f"head{sequence_id}_{frame_id}.p")
+            return cls.load(f"pickled_head/head{sequence_id}_{frame_id}.p")
 
     @classmethod
     def load(cls, data_file='head.p'):
@@ -333,7 +333,7 @@ class threeD_head():
 
         verbose = False
         min_grad=0.15
-        min_grad=0.27
+        min_grad=0.15
         size=3
         lb=size//2
         ub=size//2+1
@@ -404,9 +404,11 @@ class threeD_head():
         :param file_name:
         :return:
         '''
+        if not os.path.isdir("pickled_head"):
+            os.mkdir("pickled_head")
         if file_name is None:
             file_name=f"pickled_head/head{self.sequence_id}_{self.frame_id}.p"
         pickle.dump(self, open(file_name, 'wb'))
-        data_file=f"pickled_head/head_spheres{self.sequence_id}_{self.frame_id}.p"
+        data_file=f"pickled_head/head_spheres.p"
         pickle.dump(self.spheres, open(data_file, 'wb'))
 

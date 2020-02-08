@@ -5,3 +5,6 @@ __pycache__/
 *.p
 *.pyc
 *.png
+pickled_head/
+head_2d_image/
+
