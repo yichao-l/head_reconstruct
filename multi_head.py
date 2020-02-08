@@ -1,5 +1,4 @@
 from Procrustes2 import *
-import  HEAD_RECON
 import pickle
 import HEAD_RECON
 import icp
@@ -91,14 +90,10 @@ class MultiHead():
 
         self.spheres = head1.spheres + head2.spheres
         pickle.dump(self.spheres, open("head_spheres.p", 'wb'))
-    def icp_transform(self,index1,index2):
-        # perform one iteration of icp algorithm
-        head1= self.heads[index1]
-        head2= self.heads[index2]
-        print(index1)
-        # T, distance, ite = icp.icp(head1.xyz, head2.xyz)
-        # print(distance)
-        # head2.transform(T)
+    
+    def icp_transformA(self):
+        
+        print("hello")
 
     def save_spheres(self):
         pickle.dump(self.spheres, open("head_spheres.p", 'wb'))
