@@ -32,7 +32,7 @@ class MultiHead():
         self.heads.append(head)
 
 
-    def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02,SIFT_edgeThreshold=10,SIFT_sigma = 1,searching=1):
+    def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02,SIFT_edgeThreshold=10,SIFT_sigma = 1,searching=1,RANSAC_threshold=10):
         head1 = self.heads[index1]
         head2 = self.heads[index2]
 
@@ -42,7 +42,7 @@ class MultiHead():
         kp2, des2 = get_descriptors(path2,SIFT_contrastThreshold,SIFT_edgeThreshold,SIFT_sigma)
         good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, 1)
 
-        cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list)
+        cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list,RANSAC_threshold)
 
         # head1.reset_colors()
         # head2.reset_colors()
@@ -102,9 +102,9 @@ class MultiHead():
             head2.rgb[pos] = [0, 0, 1]
 
         d, Z, tform = procrustes(xyz1, xyz2, scaling=False, reflection='best')
-
+        print("procrustes D:", d)
         R, c, t = tform['rotation'], tform['scale'], tform['translation']
-        print(c,t)
+        # print(c,t)
         head2.transform(R, c, t)
 
         if searching:
@@ -132,7 +132,10 @@ class MultiHead():
         self.save()
         return True
     
-    def get_mean_distance(self,index1,index2,r=0.01,distance_threshold=0.04):
+    def get_mean_distance(self,index1,index2,r=0.1):
+        '''
+        r (float): the percentage of pixels in head1 used for calculating distances.
+        '''
         # perform one iteration of icp algorithm
         head1 = self.heads[index1]
         head2 = self.heads[index2]
@@ -156,7 +159,7 @@ class MultiHead():
         # dst[:m,:] = np.copy(sample_2.T)
         # distances, indices = nearest_neighbor(src[:m,:].T, dst[:m,:].T)
         distances, _ = icp.nearest_neighbor(A,B)
-
+        print("distances", min(distances))
         # reset
         head2.reset_positions()
         head2.reset_colors()
@@ -168,21 +171,25 @@ class MultiHead():
         con_threshes =[0.02,0.04,0.06,0.08]
         edge_threshes = [10,20,30]
         sigmas =[0.5,1,2,3,4,5,6]
-        params = np.array(np.meshgrid(con_threshes,edge_threshes,sigmas)).T.reshape(-1,3)
-
-        for con_thresh,edge_thresh,sigma in params:
-                try: # catch bad parameters
-                    distance = self.join_heads(index1,index2,con_thresh,edge_thresh,sigma,searching=1)
+        RAN_threshes = [10]
+        params = np.array(np.meshgrid(con_threshes,edge_threshes,sigmas,RAN_threshes)).T.reshape(-1,4)
+        num_param = params.shape[0]
+        for i,[con_thresh,edge_thresh,sigma,RAN] in enumerate(params):
+                try: 
+                    # catch bad parameters
+                    distance = self.join_heads(index1,index2,con_thresh,edge_thresh,sigma,searching=1,RANSAC_threshold=RAN)
+                    # print progress
+                    print("Searching(head {} and {}) {}/{} done. Distance: {}".format(index1,index2,i,num_param,distance,RAN))
                 except:
                     distance = 100000
                 distances.append(distance)
         min_idx = np.argmin(distances)
         print(min_idx,"min_dist",distances[min_idx],"params:",params[min_idx])
-        self.join_heads(index1,index2,params[min_idx][0],params[min_idx][1],params[min_idx][2],searching=0)
+        self.join_heads(index1,index2,params[min_idx][0],params[min_idx][1],params[min_idx][2],searching=0,RANSAC_threshold=params[min_idx][3])
         return
 
 
-    def icp_transform(self,index1,index2,r=0.01,file_name='pickled_head/after_icp.p'):
+    def icp_transform(self,index1,index2,r=0.05,file_name='pickled_head/after_icp.p'):
         '''
         param:
         r (float): sampleing rate for head1 
@@ -200,6 +207,7 @@ class MultiHead():
         sample_2 = np.random.choice(np.arange(n_2),n_sample) 
         T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2])
 
+        # transform head2
         head2.transform_homo(T)
 
         return
