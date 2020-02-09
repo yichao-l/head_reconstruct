@@ -79,10 +79,10 @@ class MultiHead():
         xyz1 = np.asarray([head1.xyz[ind[0][0]] for ind in indices1])
         xyz2 = np.asarray([head2.xyz[ind[0][0]] for ind in indices2])
 
-        # head1.keypoints=xyz1
-        # head1.keypoints_clr=[1,0,0]
-        # head2.keypoints=xyz2
-        # head2.keypoints_clr=[0,1,0]
+        head1.keypoints = xyz1
+        head1.keypoints_clr = [1, 0, 0]
+        head2.keypoints = xyz2
+        head2.keypoints_clr = [0, 1, 0]
 
         list_train_idx = [matches[i].trainIdx for i in range(len(matches)) if filter[i]]
         list_query_idx = [matches[i].queryIdx for i in range(len(matches)) if filter[i]]
