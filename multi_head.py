@@ -32,17 +32,30 @@ class MultiHead():
         self.heads.append(head)
 
 
+<<<<<<< HEAD
     def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02,SIFT_edgeThreshold=10,SIFT_sigma = 1,searching=1,RANSAC_threshold=10):
+||||||| merged common ancestors
+    def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02,SIFT_edgeThreshold=10,SIFT_sigma = 1,searching=1):
+=======
+    def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=10, SIFT_sigma=1,
+                   searching=True):
+>>>>>>> 08296eddc2ce6c4ef0649436983c63639b2ff38e
         head1 = self.heads[index1]
         head2 = self.heads[index2]
 
         img1, path1 = head1.get_filtered_image()
         img2, path2 = head2.get_filtered_image()
-        kp1, des1 = get_descriptors(path1,SIFT_contrastThreshold,SIFT_edgeThreshold,SIFT_sigma)
-        kp2, des2 = get_descriptors(path2,SIFT_contrastThreshold,SIFT_edgeThreshold,SIFT_sigma)
-        good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, 1)
+        kp1, des1 = get_descriptors(path1, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
+        kp2, des2 = get_descriptors(path2, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
+        good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, 1, searching=searching)
 
+<<<<<<< HEAD
         cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list,RANSAC_threshold)
+||||||| merged common ancestors
+        cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list)
+=======
+        cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list, searching=searching)
+>>>>>>> 08296eddc2ce6c4ef0649436983c63639b2ff38e
 
         # head1.reset_colors()
         # head2.reset_colors()
@@ -123,13 +136,12 @@ class MultiHead():
         # self.spheres = head1.spheres + head2.spheres
 
         # comment out for speed
-        head1.create_vpython_spheres()
-        head2.create_vpython_spheres()
-
-        self.spheres = head1.spheres + head2.spheres
-
-        self.create_spheres()
-        self.save()
+        if not searching:
+            head1.create_vpython_spheres()
+            head2.create_vpython_spheres()
+            self.spheres = head1.spheres + head2.spheres
+            self.create_spheres()
+            self.save()
         return True
     
     def get_mean_distance(self,index1,index2,r=0.1):
@@ -171,6 +183,7 @@ class MultiHead():
         con_threshes =[0.02,0.04,0.06,0.08]
         edge_threshes = [10,20,30]
         sigmas =[0.5,1,2,3,4,5,6]
+<<<<<<< HEAD
         RAN_threshes = [10]
         params = np.array(np.meshgrid(con_threshes,edge_threshes,sigmas,RAN_threshes)).T.reshape(-1,4)
         num_param = params.shape[0]
@@ -180,12 +193,33 @@ class MultiHead():
                     distance = self.join_heads(index1,index2,con_thresh,edge_thresh,sigma,searching=1,RANSAC_threshold=RAN)
                     # print progress
                     print("Searching(head {} and {}) {}/{} done. Distance: {}".format(index1,index2,i,num_param,distance,RAN))
+||||||| merged common ancestors
+        params = np.array(np.meshgrid(con_threshes,edge_threshes,sigmas)).T.reshape(-1,3)
+
+        for con_thresh,edge_thresh,sigma in params:
+                try: # catch bad parameters
+                    distance = self.join_heads(index1,index2,con_thresh,edge_thresh,sigma,searching=1)
+=======
+        params = np.array(np.meshgrid(con_threshes,edge_threshes,sigmas)).T.reshape(-1,3)
+
+        for con_thresh,edge_thresh,sigma in params:
+                try: # catch bad parameters
+                    distance = self.join_heads(index1, index2, con_thresh, edge_thresh, sigma, searching=True)
+>>>>>>> 08296eddc2ce6c4ef0649436983c63639b2ff38e
                 except:
                     distance = 100000
                 distances.append(distance)
         min_idx = np.argmin(distances)
+<<<<<<< HEAD
         print(min_idx,"min_dist",distances[min_idx],"params:",params[min_idx])
         self.join_heads(index1,index2,params[min_idx][0],params[min_idx][1],params[min_idx][2],searching=0,RANSAC_threshold=params[min_idx][3])
+||||||| merged common ancestors
+        print(min_idx,"min_dist",distances[min_idx],"params:",params[min_idx])
+        self.join_heads(index1,index2,params[min_idx][0],params[min_idx][1],params[min_idx][2],searching=0)
+=======
+        print(min_idx, "min_dist", distances[min_idx], "params:", params[min_idx])
+        self.join_heads(index1, index2, params[min_idx][0], params[min_idx][1], params[min_idx][2], searching=False)
+>>>>>>> 08296eddc2ce6c4ef0649436983c63639b2ff38e
         return
 
 
