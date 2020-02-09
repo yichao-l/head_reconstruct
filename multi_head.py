@@ -20,7 +20,8 @@ class MultiHead():
         head2.center()
         this.heads.append(head1)
         this.heads.append(head2)
-        this.join_heads(0, 1)
+        this.join_heads_wraper(0, 1)
+        # this.join_heads(0,1,SIFT_contrastThreshold=0.04,SIFT_edgeThreshold=10,SIFT_sigma=0.5)
         return this
 
     def append_head(self, head):
@@ -31,7 +32,7 @@ class MultiHead():
         self.heads.append(head)
 
 
-    def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02,SIFT_edgeThreshold=10,SIFT_sigma = 1)):
+    def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02,SIFT_edgeThreshold=10,SIFT_sigma = 1,searching=1):
         head1 = self.heads[index1]
         head2 = self.heads[index2]
 
@@ -113,25 +114,24 @@ class MultiHead():
         print(c,t)
         head2.transform(R, c, t)
 
+        if searching:
+            return self.get_mean_distance(index1,index2)
         # verify the transform
-        if not verified_tranform(index1,index2):
-            # transform head2 back to its original position?
-            return False
+        # if not verified_tranform(index1,index2):
+        #     # transform head2 back to its original position?
+        #     return False
 
-        head1.create_vpython_spheres()
-        head2.create_vpython_spheres()
+        # head1.create_vpython_spheres()
+        # head2.create_vpython_spheres()
         # todo create spheres as part of the mulit-head object
         # head1.save()
         # head2.save()
 
-        self.spheres = head1.spheres + head2.spheres
+        # self.spheres = head1.spheres + head2.spheres
 
-
+        # comment out for speed
         head1.create_vpython_spheres()
         head2.create_vpython_spheres()
-        # todo create spheres as part of the mulit-head object
-        # head1.save()
-        # head2.save()
 
         self.spheres = head1.spheres + head2.spheres
 
@@ -139,7 +139,7 @@ class MultiHead():
         self.save()
         return True
     
-    def verified_tranform(index1,index2,distance_threshold=0.04):
+    def get_mean_distance(self,index1,index2,r=0.01,distance_threshold=0.04):
         # perform one iteration of icp algorithm
         head1 = self.heads[index1]
         head2 = self.heads[index2]
@@ -150,24 +150,46 @@ class MultiHead():
         n_2 = head2.xyz.shape[0] 
         sample_1 = np.random.choice(np.arange(n_1),n_sample)
         sample_2 = np.random.choice(np.arange(n_2),n_sample)  
-
+        A = head1.xyz[sample_1]
+        B = head2.xyz[sample_2]
         # get mean distance
-        distances, _ = icp.NearestNeighbors(sample_1,sample_2)
-        return (np.mean(distances) < distance_threshold)
+        # # get number of dimensions
+        # m = sample_1.shape[1]
+
+        # # make points homogeneous, copy them to maintain the originals
+        # src = np.ones((m+1,sample_1.shape[0]))
+        # dst = np.ones((m+1,sample_2.shape[0]))
+        # src[:m,:] = np.copy(sample_1.T)
+        # dst[:m,:] = np.copy(sample_2.T)
+        # distances, indices = nearest_neighbor(src[:m,:].T, dst[:m,:].T)
+        distances, _ = icp.nearest_neighbor(A,B)
+
+        # reset
+        head2.reset_positions()
+        head2.reset_colors()
+        return np.mean(distances)
             
 
     def join_heads_wraper (self, index1, index2):
-        for con_thresh in [0.02,0.04,0.06,0.08]:
-            for edge_thresh in [10,20]:
-                for sigma in [0.5,1,2,3,4,5,6]:
-                    not_verified = join_heads(index1,index2,con_thresh,edge_thresh,sigma)
-                    verified = not not_verified
-                    if verified:
-                        return
+        distances = []
+        con_threshes =[0.02,0.04,0.06,0.08]
+        edge_threshes = [10,20,30]
+        sigmas =[0.5,1,2,3,4,5,6]
+        params = np.array(np.meshgrid(con_threshes,edge_threshes,sigmas)).T.reshape(-1,3)
+
+        for con_thresh,edge_thresh,sigma in params:
+                try: # catch bad parameters
+                    distance = self.join_heads(index1,index2,con_thresh,edge_thresh,sigma,searching=1)
+                except: 
+                    distance = 100000
+                distances.append(distance)
+        min_idx = np.argmin(distances)
+        print(min_idx,"min_dist",distances[min_idx],"params:",params[min_idx])
+        self.join_heads(index1,index2,params[min_idx][0],params[min_idx][1],params[min_idx][2],searching=0)
         return
 
 
-    def icp_transform(self,index1,index2,r=0.05,file_name='pickled_head/after_icp.p'):
+    def icp_transform(self,index1,index2,r=0.01,file_name='pickled_head/after_icp.p'):
         '''
         param:
         r (float): sampleing rate for head1 
@@ -183,7 +205,7 @@ class MultiHead():
         n_2 = head2.xyz.shape[0] 
         sample_1 = np.random.choice(np.arange(n_1),n_sample)
         sample_2 = np.random.choice(np.arange(n_2),n_sample) 
-        T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2],distance_threshold=distance_threshold)
+        T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2])
 
         head2.transform_homo(T)
 
