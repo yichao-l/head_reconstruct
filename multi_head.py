@@ -31,15 +31,15 @@ class MultiHead():
         self.heads.append(head)
 
 
-    def join_heads(self, index1, index2):
+    def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02,SIFT_edgeThreshold=10,SIFT_sigma = 1)):
         head1 = self.heads[index1]
         head2 = self.heads[index2]
 
         img1, path1 = head1.get_filtered_image()
         img2, path2 = head2.get_filtered_image()
-        kp1, des1 = get_descriptors(path1)
-        kp2, des2 = get_descriptors(path2)
-        good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, 0.9)
+        kp1, des1 = get_descriptors(path1,SIFT_contrastThreshold,SIFT_edgeThreshold,SIFT_sigma)
+        kp2, des2 = get_descriptors(path2,SIFT_contrastThreshold,SIFT_edgeThreshold,SIFT_sigma)
+        good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, 1)
 
         cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list)
 
@@ -60,13 +60,8 @@ class MultiHead():
         indices1=[np.argwhere(head1.xy_mesh==ind) for ind in xyindex1]
         filter1=[len(ind) >0 for ind in indices1]
 
-
-
         xyz1 = head1.xyz_unfiltered[xyindex1]
         # xyz1 = head1.xyz[[xyindex1]
-
-
-
 
         pts2 = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
         xy2 = np.round(pts2).astype("int").reshape(-1, 2)
@@ -115,10 +110,13 @@ class MultiHead():
         d, Z, tform = procrustes(xyz1, xyz2, scaling=False, reflection='best')
 
         R, c, t = tform['rotation'], tform['scale'], tform['translation']
-
+        print(c,t)
         head2.transform(R, c, t)
 
-
+        # verify the transform
+        if not verified_tranform(index1,index2):
+            # transform head2 back to its original position?
+            return False
 
         head1.create_vpython_spheres()
         head2.create_vpython_spheres()
@@ -139,8 +137,37 @@ class MultiHead():
 
         self.create_spheres()
         self.save()
+        return True
+    
+    def verified_tranform(index1,index2,distance_threshold=0.04):
+        # perform one iteration of icp algorithm
+        head1 = self.heads[index1]
+        head2 = self.heads[index2]
 
-    def icp_transform(self,index1,index2,r=0.01,file_name='pickled_head/after_icp.p'):
+        # sample both array to the same size
+        n_sample = int(head1.xyz.shape[0]*r)
+        n_1 = head1.xyz.shape[0]
+        n_2 = head2.xyz.shape[0] 
+        sample_1 = np.random.choice(np.arange(n_1),n_sample)
+        sample_2 = np.random.choice(np.arange(n_2),n_sample)  
+
+        # get mean distance
+        distances, _ = icp.NearestNeighbors(sample_1,sample_2)
+        return (np.mean(distances) < distance_threshold)
+            
+
+    def join_heads_wraper (self, index1, index2):
+        for con_thresh in [0.02,0.04,0.06,0.08]:
+            for edge_thresh in [10,20]:
+                for sigma in [0.5,1,2,3,4,5,6]:
+                    not_verified = join_heads(index1,index2,con_thresh,edge_thresh,sigma)
+                    verified = not not_verified
+                    if verified:
+                        return
+        return
+
+
+    def icp_transform(self,index1,index2,r=0.05,file_name='pickled_head/after_icp.p'):
         '''
         param:
         r (float): sampleing rate for head1 
@@ -156,7 +183,8 @@ class MultiHead():
         n_2 = head2.xyz.shape[0] 
         sample_1 = np.random.choice(np.arange(n_1),n_sample)
         sample_2 = np.random.choice(np.arange(n_2),n_sample) 
-        T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2])
+        T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2],distance_threshold=distance_threshold)
+
         head2.transform_homo(T)
 
         return

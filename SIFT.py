@@ -2,7 +2,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-def get_descriptors(img_path):
+def get_descriptors(img_path,SIFT_contrastThreshold=0.04,SIFT_edgeThreshold=10,SIFT_sigma=4):
     '''
     param:
     image (array): colored image
@@ -12,7 +12,7 @@ def get_descriptors(img_path):
     # Load the image in BGR
     img = cv2.imread(img_path)
     # Find keypoints
-    sift = cv2.xfeatures2d.SIFT_create()
+    sift = cv2.xfeatures2d.SIFT_create(contrastThreshold = SIFT_contrastThreshold,edgeThreshold=SIFT_edgeThreshold,sigma = SIFT_sigma)
     kp, des = sift.detectAndCompute(img,None)
     # img = cv2.drawKeypoints(gray,kp,img)        
     return kp, des
