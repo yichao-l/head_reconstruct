@@ -13,8 +13,10 @@ def float_2_rgb(num):
         
 class threeD_head():
     def __init__(self, data_path=None):
-        self.data_path=data_path
-        self.background_color=1
+        self.data_path = data_path
+        self.background_color = 1
+        self.keypoints = []
+        self.keypoints_clr = [1, 0, 0]
 
     @classmethod
     def read_from_file(cls, sequence_id, frame_id):
@@ -42,6 +44,7 @@ class threeD_head():
         this.sequence_id=sequence_id
         this.frame_id=frame_id
         this.img_coord_from_xyz()
+
         return this
 
     @classmethod
@@ -82,7 +85,7 @@ class threeD_head():
         '''
         twoD_image= self.twoD_image.copy().reshape(-1, 3)
         if not self.background_color is None:
-            img= 1*np.ones((480*640,3))* self.background_color
+            img = 0 * np.ones((480 * 640, 3)) * self.background_color
         else:
             img = np.zeros((480 * 640, 3))
         for v in self.xy_mesh:
@@ -213,6 +216,7 @@ class threeD_head():
         l = self.xyz.shape[0]
         filter = np.random.random((l)) < sparsity
         self.sparse_xy_mesh = self.xy_mesh[filter]
+
         self.sparse_xyz = self.xyz[filter]
         self.sparse_rgb = self.rgb[filter]
 
@@ -394,20 +398,17 @@ class threeD_head():
         else:
             sparce_xyz = self.xyz
             sparce_rgb = self.rgb
+        radius = np.ones(sparce_xyz.shape[0]) * 0.0015
+        rad = 0.001
 
-        self.spheres = []
-        for i in range(sparce_xyz.shape[0]):
-            next = vec(sparce_xyz[i, 0], -sparce_xyz[i, 1], -sparce_xyz[i, 2])
-            if np.all(sparce_rgb[i] == [0, 1, 0]):
-                rad = 0.005
-            elif np.all(sparce_rgb[i] == [1, 0, 0]):
-                rad = 0.005
-            elif np.all(sparce_rgb[i] == [0, 0, 1]):
-                rad = 0.005
-            else:
-                rad = 0.0015
-            self.spheres.append(
-                {'pos': next, 'radius': rad, 'color': (vec(sparce_rgb[i, 0], sparce_rgb[i, 1], sparce_rgb[i, 2]))})
+        self.spheres = [{'pos': vec(sparce_xyz[i, 0], -sparce_xyz[i, 1], -sparce_xyz[i, 2]), 'radius': 0.0015,
+                         'color': (vec(sparce_rgb[i, 0], sparce_rgb[i, 1], sparce_rgb[i, 2]))} for i in
+                        range(sparce_xyz.shape[0])]
+
+        self.spheres += [
+            {'pos': vec(self.keypoints[i, 0], -self.keypoints[i, 1], -self.keypoints[i, 2]), 'radius': 0.005,
+             'color': (vec(self.keypoints_clr[0], self.keypoints_clr[1], self.keypoints_clr[2]))} for i in
+            range(self.keypoints.shape[0])]
 
     def save(self, file_name=None):
         '''

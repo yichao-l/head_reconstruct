@@ -9,12 +9,13 @@ def get_descriptors(img_path,SIFT_contrastThreshold=0.04,SIFT_edgeThreshold=10,S
     return:
     void
     '''
+
     # Load the image in BGR
     img = cv2.imread(img_path)
     # Find keypoints
+
     sift = cv2.xfeatures2d.SIFT_create(contrastThreshold = SIFT_contrastThreshold,edgeThreshold=SIFT_edgeThreshold,sigma = SIFT_sigma)
     kp, des = sift.detectAndCompute(img,None)
-    # img = cv2.drawKeypoints(gray,kp,img)        
     return kp, des
 
 def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=0.7):
@@ -36,7 +37,6 @@ def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=0.7):
 
     # cv2.drawMatchesKnn expects list of lists as matches.
     img3 = cv2.drawMatchesKnn(img1,kp1,img2,kp2,good,None,flags=2)
-
 
     plt.imshow(img3),plt.show()
     cv2.imwrite("des_match.png",img3)

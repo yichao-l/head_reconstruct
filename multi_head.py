@@ -79,17 +79,10 @@ class MultiHead():
         xyz1 = np.asarray([head1.xyz[ind[0][0]] for ind in indices1])
         xyz2 = np.asarray([head2.xyz[ind[0][0]] for ind in indices2])
 
-        # print(xyz1)
-        # print(xyz2)
-
-        # xyz2 = head2.xyz_unfiltered[xyindex2]
-        #
-        # print(~np.isnan(xyz1).any(axis=1))
-        # print(~np.isnan(xyz2).any(axis=1))
-        # filter =~np.isnan(xyz1).any(axis=1) & ~np.isnan(xyz2).any(axis=1)
-
-        # xyindex1=xyindex2[filter]
-        # xyindex2=xyindex2[filter]
+        # head1.keypoints=xyz1
+        # head1.keypoints_clr=[1,0,0]
+        # head2.keypoints=xyz2
+        # head2.keypoints_clr=[0,1,0]
 
         list_train_idx = [matches[i].trainIdx for i in range(len(matches)) if filter[i]]
         list_query_idx = [matches[i].queryIdx for i in range(len(matches)) if filter[i]]
@@ -147,8 +140,8 @@ class MultiHead():
         # sample both array to the same size
         n_sample = int(head1.xyz.shape[0]*r)
         n_1 = head1.xyz.shape[0]
-        n_2 = head2.xyz.shape[0] 
-        sample_1 = np.random.choice(np.arange(n_1),n_sample)
+        n_2 = head2.xyz.shape[0]
+        sample_1 = np.random.choice(np.arange(n_1), n_sample)
         sample_2 = np.random.choice(np.arange(n_2),n_sample)  
         A = head1.xyz[sample_1]
         B = head2.xyz[sample_2]
@@ -180,7 +173,7 @@ class MultiHead():
         for con_thresh,edge_thresh,sigma in params:
                 try: # catch bad parameters
                     distance = self.join_heads(index1,index2,con_thresh,edge_thresh,sigma,searching=1)
-                except: 
+                except:
                     distance = 100000
                 distances.append(distance)
         min_idx = np.argmin(distances)
