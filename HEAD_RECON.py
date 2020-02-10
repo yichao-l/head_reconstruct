@@ -1,10 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import os
 import struct
 from vpython import *
 import pickle
 import cv2
+from scipy.ndimage.morphology import binary_fill_holes
 from SIFT import *
 
 def float_2_rgb(num):
@@ -184,6 +186,41 @@ class threeD_head():
         self.center()
         self.create_vpython_spheres()
         self.save()
+
+    def edge_based_filter(self):
+        '''
+        Take the twoD_image attribute and generate a binary 
+        filter based on edge detection and binary fill holes.
+        '''
+        # extract the s layer of the HSV image
+        image = self.twoD_image.copy()
+        # plt.imshow(image)
+        
+        hsv = matplotlib.colors.rgb_to_hsv(image)
+        s = np.uint8(hsv[:,:,1])
+
+        # edge detection
+        edge = cv2.Canny(s,150,200)
+        dilation_kernel = np.ones((2,2))
+        dilation = cv2.dilate(edge,dilation_kernel,iterations=3)
+        plt.imshow(edge);plt.show()
+        # closing and binary fill
+        closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, np.ones((10,10)))
+        im_fill = binary_fill_holes(closing)
+        im_fill = im_fill*255
+        im_fill = np.uint8(im_fill)
+        plt.imshow(im_fill);plt.show()
+
+        # dilate and erode again
+        kernel = np.ones((4,4))
+        dilation = cv2.dilate(im_fill,kernel,iterations=6)
+        erode = cv2.erode(dilation,kernel,iterations=6)
+
+        # filter
+        edge_filter = erode > 0
+        self.xy_mesh = self.xy_mesh[np.ravel(edge_filter)]
+        self.rgb = self.rgb[edge_filter]
+        self.xyz = self.xyz[edge_filter]
 
 
 
