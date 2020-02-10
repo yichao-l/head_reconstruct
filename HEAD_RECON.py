@@ -405,10 +405,10 @@ class threeD_head():
                          'color': (vec(sparce_rgb[i, 0], sparce_rgb[i, 1], sparce_rgb[i, 2]))} for i in
                         range(sparce_xyz.shape[0])]
 
-        self.spheres += [
-            {'pos': vec(self.keypoints[i, 0], -self.keypoints[i, 1], -self.keypoints[i, 2]), 'radius': 0.005,
-             'color': (vec(self.keypoints_clr[0], self.keypoints_clr[1], self.keypoints_clr[2]))} for i in
-            range(self.keypoints.shape[0])]
+        # self.spheres += [
+        #     {'pos': vec(self.keypoints[i, 0], -self.keypoints[i, 1], -self.keypoints[i, 2]), 'radius': 0.005,
+        #      'color': (vec(self.keypoints_clr[0], self.keypoints_clr[1], self.keypoints_clr[2]))} for i in
+        #     range(self.keypoints.shape[0])]
 
     def save(self, file_name=None):
         '''
