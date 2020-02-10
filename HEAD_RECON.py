@@ -200,22 +200,30 @@ class threeD_head():
         hsv = cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
         s = np.uint8(hsv[:,:,1])
         # edge detection
-        edge = cv2.Canny(s,150,200)
-        dilation_kernel = np.ones((2,2))
-        dilation = cv2.dilate(edge,dilation_kernel,iterations=3)
-        plt.imshow(s);plt.show()
+        edge = cv2.Canny(s,100,200)
+        plt.imshow(edge);plt.show()
+        
+        dilation_kernel = np.ones((3,3))
+        dilation = cv2.dilate(edge,dilation_kernel,iterations=16)
+        erode = cv2.erode(dilation,dilation_kernel,iterations=16)
+
+        plt.imshow(erode);plt.show()
         # closing and binary fill
-        closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, np.ones((10,10)))
-        im_fill = binary_fill_holes(closing)
+        erode[479,:] = 255
+        # closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, np.ones((10,10)))
+        im_fill = binary_fill_holes(erode)
         im_fill = im_fill*255
         im_fill = np.uint8(im_fill)
         plt.imshow(im_fill);plt.show()
 
         # dilate and erode again
         kernel = np.ones((4,4))
-        dilation = cv2.dilate(im_fill,kernel,iterations=6)
-        erode = cv2.erode(dilation,kernel,iterations=6)
-        plt.imshow(erode);plt.show()
+        dilation = cv2.dilate(im_fill,kernel,iterations=1)
+        erode = cv2.erode(dilation,kernel,iterations=1)
+        opening = cv2.morphologyEx(erode, cv2.MORPH_OPEN, np.ones((4,4)))
+
+        plt.imshow(opening);plt.show()
+
         # filter
         edge_filter = erode > 0
         edge_filter = np.ravel(edge_filter)
@@ -242,7 +250,9 @@ class threeD_head():
         removes all entries where any of the xyz coordinates is nan
         '''
         nan_filter = ~np.isnan(self.xyz).any(axis=1)
+        print(self.xy_mesh.shape)
         self.xy_mesh=self.xy_mesh[nan_filter]
+        
         self.xyz = self.xyz[nan_filter]
         self.rgb = self.rgb[nan_filter]
 
