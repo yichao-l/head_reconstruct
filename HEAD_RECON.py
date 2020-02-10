@@ -194,16 +194,16 @@ class threeD_head():
         '''
         # extract the s layer of the HSV image
         image = self.twoD_image.copy()
-        # plt.imshow(image)
+        plt.imsave("head_2d_image/unfilter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
         
-        hsv = matplotlib.colors.rgb_to_hsv(image)
+        image = cv2.imread("head_2d_image/unfilter_{}_{}.png".format(self.sequence_id,self.frame_id))
+        hsv = cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
         s = np.uint8(hsv[:,:,1])
-
         # edge detection
         edge = cv2.Canny(s,150,200)
         dilation_kernel = np.ones((2,2))
         dilation = cv2.dilate(edge,dilation_kernel,iterations=3)
-        plt.imshow(edge);plt.show()
+        plt.imshow(s);plt.show()
         # closing and binary fill
         closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, np.ones((10,10)))
         im_fill = binary_fill_holes(closing)
@@ -215,10 +215,12 @@ class threeD_head():
         kernel = np.ones((4,4))
         dilation = cv2.dilate(im_fill,kernel,iterations=6)
         erode = cv2.erode(dilation,kernel,iterations=6)
-
+        plt.imshow(erode);plt.show()
         # filter
         edge_filter = erode > 0
-        self.xy_mesh = self.xy_mesh[np.ravel(edge_filter)]
+        edge_filter = np.ravel(edge_filter)
+        print(self.xy_mesh.shape)
+        self.xy_mesh = self.xy_mesh[edge_filter]
         self.rgb = self.rgb[edge_filter]
         self.xyz = self.xyz[edge_filter]
 
