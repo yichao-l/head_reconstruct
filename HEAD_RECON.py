@@ -176,6 +176,7 @@ class threeD_head():
         # Then center the pixels, create vpython spheres
         # and save as pickel obj for future use.
         self.reset_filters()
+        self.edge_based_filter()
         self.filter_nan()
         self.filter_depth(depth)
         print("depth filter done.")
@@ -197,32 +198,44 @@ class threeD_head():
         plt.imsave("head_2d_image/unfilter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
         
         image = cv2.imread("head_2d_image/unfilter_{}_{}.png".format(self.sequence_id,self.frame_id))
-        hsv = cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
-        s = np.uint8(hsv[:,:,1])
-        # edge detection
-        edge = cv2.Canny(s,70,200)
-        plt.imshow(edge);plt.show()
+        # blurred = cv2.GaussianBlur(image, (3, 3), 0)
+        # tight = cv2.Canny(blurred, 150, 250)
+        # kernel = np.ones((3,3))
+        # dilation = cv2.dilate(tight,kernel,iterations =30)
+        # dilation[479,:] = 255
+        # im_floodfill = binary_fill_holes(dilation)
+        # im_floodfill = im_floodfill*1
+        # im_floodfill = np.uint8(im_floodfill)
+        # erode = cv2.erode(im_floodfill,kernel,iterations=30)
+        # plt.imshow(erode);plt.show()
+        # edge = cv2.Canny(blurred,130,250)
+    
+        # for i in range (12):
+        #     _, contours, hierarchy = cv2.findContours(edge,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+        #     image_another = image.copy()
+        #     cv2.drawContours(image_another, contours, -1, (255,0,0), 0)
+        #     edge = cv2.Canny(image_another,200,250)
         
-        dilation_kernel = np.ones((3,3))
-        dilation = cv2.dilate(edge,dilation_kernel,iterations=17)
-        erode = cv2.erode(dilation,dilation_kernel,iterations=17)
+        # kernel = np.ones((3,3))
+        # dilation = cv2.dilate(edge,kernel,iterations =1)
+        # dilation[479,:] = 255
+        # im_floodfill = binary_fill_holes(dilation)
+        # im_floodfill = im_floodfill*1
+        # im_floodfill = np.uint8(im_floodfill)
 
-        plt.imshow(erode);plt.show()
-        # closing and binary fill
-        erode[479,:] = 255
-        # closing = cv2.morphologyEx(dilation, cv2.MORPH_CLOSE, np.ones((10,10)))
-        im_fill = binary_fill_holes(erode)
-        im_fill = im_fill*255
-        im_fill = np.uint8(im_fill)
-        plt.imshow(im_fill);plt.show()
-
-        # dilate and erode again
-        kernel = np.ones((4,4))
-        dilation = cv2.dilate(im_fill,kernel,iterations=1)
-        erode = cv2.erode(dilation,kernel,iterations=1)
-        opening = cv2.morphologyEx(erode, cv2.MORPH_OPEN, np.ones((4,4)))
-
-        plt.imshow(opening);plt.show()
+    
+        # erode = cv2.erode(im_floodfill,kernel,iterations=13)
+        # plt.imshow(erode);plt.show()
+        image[370:,:]=0
+        # image[350,:]=1
+        tight = cv2.Canny(image, 100, 250)
+        # tight[350,:]=1
+        kernel = np.ones((3,3))
+        dilation = cv2.dilate(tight,kernel,iterations =9)
+        im_floodfill = binary_fill_holes(dilation)
+        im_floodfill = im_floodfill*1
+        im_floodfill = np.uint8(im_floodfill)
+        erode = cv2.erode(im_floodfill,kernel,iterations=10)
 
         # filter
         edge_filter = erode > 0

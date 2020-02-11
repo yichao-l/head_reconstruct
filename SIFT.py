@@ -44,7 +44,7 @@ def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=0.7, searching=Tr
     return good_without_list
 
 
-def clean_matches(kp1, img1, kp2, img2, matches, min_match=8, searching=True):
+def clean_matches(kp1, img1, kp2, img2, matches, min_match=4, searching=True):
     '''
     param:
         matches (list(DMatch)): a list of matching object
@@ -55,10 +55,20 @@ def clean_matches(kp1, img1, kp2, img2, matches, min_match=8, searching=True):
     img2 = cv2.imread(img2)
     img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+
+    # delete matches with huge y differece
+    matches = [m for m in matches if (abs(kp1[m.queryIdx].pt[1]-kp2[m.trainIdx].pt[1]) < 15)]
+    mean = np.mean([640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0] for m in matches]) 
+    matches = [m for m in matches if (abs(640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0]- mean) < 70)]
+    # print([640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0] for m in matches])
+    # print(np.mean([640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0] for m in matches]))
     MIN_MATCH_COUNT = min_match
     if len(matches)>MIN_MATCH_COUNT:
         src_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
         dst_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+
+        
+
 
         M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 10)
         matchesMask = mask.ravel().tolist()
@@ -85,7 +95,7 @@ def clean_matches(kp1, img1, kp2, img2, matches, min_match=8, searching=True):
 
         img3 = cv2.drawMatches(img1, kp1, img2, kp2, matches, None, **draw_params)
         cv2.imwrite("des_match_cleaned.png", img3)
-        # plt.imshow(img3, 'gray'), plt.show()
+        plt.imshow(img3, 'gray'), plt.show()
 
     return cleaned_matches
 
