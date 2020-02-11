@@ -200,12 +200,12 @@ class threeD_head():
         hsv = cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
         s = np.uint8(hsv[:,:,1])
         # edge detection
-        edge = cv2.Canny(s,100,200)
+        edge = cv2.Canny(s,70,200)
         plt.imshow(edge);plt.show()
         
         dilation_kernel = np.ones((3,3))
-        dilation = cv2.dilate(edge,dilation_kernel,iterations=16)
-        erode = cv2.erode(dilation,dilation_kernel,iterations=16)
+        dilation = cv2.dilate(edge,dilation_kernel,iterations=17)
+        erode = cv2.erode(dilation,dilation_kernel,iterations=17)
 
         plt.imshow(erode);plt.show()
         # closing and binary fill
