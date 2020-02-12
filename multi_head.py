@@ -107,7 +107,8 @@ class MultiHead():
         head2.transform(R, c, t)
 
         if searching:
-            return self.get_mean_distance(index1,index2)
+            # the sum of the average distance between match point and the average distance of all the points.
+            return (0.9*(np.mean(np.linalg.norm(xyz1-Z,axis=1))) + (self.get_mean_distance(index1,index2))) 
         # verify the transform
         # if not verified_tranform(index1,index2):
         #     # transform head2 back to its original position?
@@ -173,12 +174,12 @@ class MultiHead():
         for i,[con_thresh,edge_thresh,sigma] in enumerate(params):
                 try: # catch bad parameters
                     distance = self.join_heads(index1, index2, con_thresh, edge_thresh, sigma, searching=True)
-                    print("Searching (head {} and {}), {}/{} done, distance: {}".format(index1,index2,i,num_param,distance))
+                    print("Searching (head {} and {}), {}/{} done, Error: {}".format(index1,index2,i,num_param,distance))
                 except:
                     distance = 100000
                 distances.append(distance)
         min_idx = np.argmin(distances)
-        print(min_idx, "min_dist", distances[min_idx], "params:", params[min_idx])
+        print(min_idx, "min_error", distances[min_idx], "params:", params[min_idx])
         self.join_heads(index1, index2, params[min_idx][0], params[min_idx][1], params[min_idx][2], searching=False)
         return
 

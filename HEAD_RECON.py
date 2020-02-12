@@ -222,23 +222,34 @@ class threeD_head():
         # im_floodfill = binary_fill_holes(dilation)
         # im_floodfill = im_floodfill*1
         # im_floodfill = np.uint8(im_floodfill)
-
-    
-        # erode = cv2.erode(im_floodfill,kernel,iterations=13)
-        # plt.imshow(erode);plt.show()
         image[370:,:]=0
-        # image[350,:]=1
-        tight = cv2.Canny(image, 100, 250)
-        # tight[350,:]=1
+        blurred = cv2.GaussianBlur(image, (3,3), 0)
+        blurred[:100,:]=0
+        blurred[380:,:]=0
+        
+        edge = cv2.Canny(blurred,100,250)
+        
+        for i in range (2):
+            _, contours, hierarchy = cv2.findContours(edge,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+            image_another = image.copy()
+            cv2.drawContours(image_another, contours, -1, (255,0,0), 0)
+            edge = cv2.Canny(image_another,200,250)
+
+        plt.imshow(edge);plt.show()
+        edge[:,480:]=0
         kernel = np.ones((3,3))
-        dilation = cv2.dilate(tight,kernel,iterations =9)
+        dilation = cv2.dilate(edge,kernel,iterations =7)
+
         im_floodfill = binary_fill_holes(dilation)
         im_floodfill = im_floodfill*1
         im_floodfill = np.uint8(im_floodfill)
+
+        
         erode = cv2.erode(im_floodfill,kernel,iterations=10)
+        dilation = cv2.dilate(erode,kernel,iterations =3)
 
         # filter
-        edge_filter = erode > 0
+        edge_filter = dilation > 0
         edge_filter = np.ravel(edge_filter)
         print(self.xy_mesh.shape)
         self.xy_mesh = self.xy_mesh[edge_filter]

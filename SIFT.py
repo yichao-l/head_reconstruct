@@ -13,7 +13,7 @@ def get_descriptors(img_path,SIFT_contrastThreshold=0.04,SIFT_edgeThreshold=10,S
     # Load the image in BGR
     img = cv2.imread(img_path)
     # Find keypoints
-
+    img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
     sift = cv2.xfeatures2d.SIFT_create(contrastThreshold = SIFT_contrastThreshold,edgeThreshold=SIFT_edgeThreshold,sigma = SIFT_sigma)
     kp, des = sift.detectAndCompute(img,None)
     return kp, des
