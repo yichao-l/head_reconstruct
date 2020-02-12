@@ -238,15 +238,15 @@ class threeD_head():
         plt.imshow(edge);plt.show()
         edge[:,480:]=0
         kernel = np.ones((3,3))
-        dilation = cv2.dilate(edge,kernel,iterations =7)
+        dilation = cv2.dilate(edge,kernel,iterations =8)
 
         im_floodfill = binary_fill_holes(dilation)
         im_floodfill = im_floodfill*1
         im_floodfill = np.uint8(im_floodfill)
 
-        
-        erode = cv2.erode(im_floodfill,kernel,iterations=10)
-        dilation = cv2.dilate(erode,kernel,iterations =3)
+ 
+        erode = cv2.erode(im_floodfill,kernel,iterations=13)
+        dilation = cv2.dilate(erode,kernel,iterations =6)
 
         # filter
         edge_filter = dilation > 0
