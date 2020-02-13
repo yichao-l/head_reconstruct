@@ -188,7 +188,7 @@ class threeD_head():
         self.create_vpython_spheres()
         self.save()
 
-    def edge_based_filter(self):
+    def edge_based_filter(self,up=150,down=370,left=260,right=480):
         '''
         Take the twoD_image attribute and generate a binary 
         filter based on edge detection and binary fill holes.
@@ -222,30 +222,34 @@ class threeD_head():
         # im_floodfill = binary_fill_holes(dilation)
         # im_floodfill = im_floodfill*1
         # im_floodfill = np.uint8(im_floodfill)
-        image[370:,:]=0
-        blurred = cv2.GaussianBlur(image, (3,3), 0)
-        blurred[:100,:]=0
-        blurred[380:,:]=0
+        image[right:,:]=0
+        # blurred = cv2.GaussianBlur(image, (3,3), 0)
+        # blurred[:100,:]=0
+        # blurred[380:,:]=0
         
-        edge = cv2.Canny(blurred,100,250)
+        edge = cv2.Canny(image,0,250)
         
         for i in range (2):
             _, contours, hierarchy = cv2.findContours(edge,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
             image_another = image.copy()
             cv2.drawContours(image_another, contours, -1, (255,0,0), 0)
-            edge = cv2.Canny(image_another,200,250)
+            edge = cv2.Canny(image_another,0,250)
 
         plt.imshow(edge);plt.show()
         edge[:,480:]=0
         kernel = np.ones((3,3))
-        dilation = cv2.dilate(edge,kernel,iterations =8)
-
+        dilation = cv2.dilate(edge,kernel,iterations =1)
+        dilation[:up,:]=0
+        dilation[down:,:]=0
+        dilation[:,right:]=0
+        dilation[:,:left]=0
         im_floodfill = binary_fill_holes(dilation)
         im_floodfill = im_floodfill*1
         im_floodfill = np.uint8(im_floodfill)
 
  
-        erode = cv2.erode(im_floodfill,kernel,iterations=13)
+        erode = cv2.erode(im_floodfill,kernel,iterations=10)
+        kernel = np.ones((5,5))
         dilation = cv2.dilate(erode,kernel,iterations =6)
 
         # filter
