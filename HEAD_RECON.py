@@ -164,7 +164,7 @@ class threeD_head():
 
     def paint(self, color):
         '''
-        transform the image:  XYZ*cR + t
+       
         '''
         color=np.asarray(color).reshape(-1)
         # self.rgb = self.rgb.mean(axis=1).reshape((-1,1)).dot(np.asarray([[1,1,1]])) * color
@@ -176,7 +176,7 @@ class threeD_head():
         # Then center the pixels, create vpython spheres
         # and save as pickel obj for future use.
         self.reset_filters()
-        self.edge_based_filter()
+        # self.edge_based_filter()
         self.filter_nan()
         self.filter_depth(depth)
         print("depth filter done.")

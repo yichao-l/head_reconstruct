@@ -20,8 +20,11 @@ class MultiHead():
         head2.center()
         this.heads.append(head1)
         this.heads.append(head2)
+        # with search
         this.join_heads_wraper(0, 1)
-        # this.join_heads(0,1,SIFT_contrastThreshold=0.04,SIFT_edgeThreshold=10,SIFT_sigma=0.5)
+
+        # without search
+        # this.join_heads_wraper(0,1,SIFT_contrastThreshold=0.04,SIFT_edgeThreshold=10,SIFT_sigma=1.6)
         return this
 
     def append_head(self, head):
@@ -32,7 +35,7 @@ class MultiHead():
         self.heads.append(head)
 
 
-    def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=10, SIFT_sigma=1,searching=True):
+    def join_heads(self, index1, index2, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=10, SIFT_sigma=1,searching=False):
         head1 = self.heads[index1]
         head2 = self.heads[index2]
 
@@ -40,10 +43,11 @@ class MultiHead():
         img2, path2 = head2.get_filtered_image()
         kp1, des1 = get_descriptors(path1, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
         kp2, des2 = get_descriptors(path2, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
-        good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, 1, searching=searching)
+        good_without_list = get_matched_points(path1, kp1, des1, path2, kp2, des2, ratio = 0.75, searching=searching)
 
-        cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list, searching=searching)
-
+        # cleaned_match = clean_matches(kp1, path1, kp2, path2, good_without_list, searching=searching)
+        cleaned_match = good_without_list
+        print(cleaned_match)
         # head1.reset_colors()
         # head2.reset_colors()
         # code below can be used to create
@@ -53,8 +57,7 @@ class MultiHead():
         # head2.reset_positions()
         # head1.center()
         # head2.center()
-
-        matches = cleaned_match[2:]
+        matches = [m for m in cleaned_match if (abs(kp1[m.queryIdx].pt[1]-kp2[m.trainIdx].pt[1]) < 15)]
         pts1 = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
         xy1 = np.round(pts1).astype("int").reshape(-1, 2)
         xyindex1 = xy1[:, 1] * 640 + xy1[:, 0]
@@ -101,10 +104,16 @@ class MultiHead():
             pos = np.where(head2.xy_mesh == i)
             head2.rgb[pos] = [0, 0, 1]
 
-        d, Z, tform = procrustes(xyz1, xyz2, scaling=False, reflection='best')
-        R, c, t = tform['rotation'], tform['scale'], tform['translation']
+        # new estimateAffine3D() function
+        retval, out, inliers = cv2.estimateAffine3D(xyz1, xyz2, ransacThreshold=0.01,confidence= 0.99)
+        R, t = out[:,:3], out[:,3]
+        print(np.linalg.eigvals(R),"R is:", R)
+        head2.transform(R.T,1,t)
+        # procretus
+        # d, Z, tform = procrustes(xyz1, xyz2, scaling=False, reflection='best')
+        # R, c, t = tform['rotation'], tform['scale'], tform['translation']
         # print(c,t)
-        head2.transform(R, c, t)
+        # head2.transform(R, c, t)
 
         if searching:
             # the sum of the average distance between match point and the average distance of all the points.
@@ -166,9 +175,9 @@ class MultiHead():
 
     def join_heads_wraper (self, index1, index2):
         distances = []
-        con_threshes =[0.02,0.04,0.06,0.08]
-        edge_threshes = [10,20,30]
-        sigmas =[0.5,1,2,3,4,5,6]
+        con_threshes =[0.04]#[0.02,0.04,0.06,0.08]
+        edge_threshes = [10]#[10,20,30]
+        sigmas =[1.6]#[0.5,1,2,3,4,5,6]
         params = np.array(np.meshgrid(con_threshes,edge_threshes,sigmas)).T.reshape(-1,3)
         num_param = params.shape[0]
         for i,[con_thresh,edge_thresh,sigma] in enumerate(params):
