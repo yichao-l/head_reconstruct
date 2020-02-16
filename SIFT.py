@@ -2,7 +2,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-def get_descriptors(img_path,SIFT_contrastThreshold=0.04,SIFT_edgeThreshold=10,SIFT_sigma=4):
+def get_descriptors(img, SIFT_contrastThreshold=0.04, SIFT_edgeThreshold=10, SIFT_sigma=4):
     '''
     param:
     image (array): colored image
@@ -10,12 +10,11 @@ def get_descriptors(img_path,SIFT_contrastThreshold=0.04,SIFT_edgeThreshold=10,S
     void
     '''
 
-    # Load the image in BGR
-    img = cv2.imread(img_path)
-    # Find keypoints
-    img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    sift = cv2.xfeatures2d.SIFT_create(contrastThreshold = SIFT_contrastThreshold,edgeThreshold=SIFT_edgeThreshold,sigma = SIFT_sigma)
-    kp, des = sift.detectAndCompute(img,None)
+    img = img * 256
+    img = cv2.cvtColor(img.astype("uint8"), cv2.COLOR_BGR2RGB)
+    sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=SIFT_contrastThreshold, edgeThreshold=SIFT_edgeThreshold,
+                                       sigma=SIFT_sigma)
+    kp, des = sift.detectAndCompute(img, None)
     return kp, des
 
 def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=0.7, searching=True):
@@ -30,11 +29,12 @@ def get_matched_points(img1, kp1, des1, img2, kp2, des2, ratio=0.7, searching=Tr
     # Apply ratio test
     good = []
     good_without_list = []
-    for m, n in matches:
-        if m.distance < ratio * n.distance:
-            good.append([m])
-            good_without_list.append(m)
-
+    # for m, n in matches:
+    #     if m.distance < ratio * n.distance:
+    #         good.append([m])
+    #         good_without_list.append(m)
+    good = matches
+    good_without_list = matches
     # cv2.drawMatchesKnn expects list of lists as matches.
     if not searching:
         img3 = cv2.drawMatchesKnn(img1, kp1, img2, kp2, good, None, flags=2)
@@ -57,18 +57,16 @@ def clean_matches(kp1, img1, kp2, img2, matches, min_match=4, searching=True):
     img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
     # delete matches with huge y differece
-    matches = [m for m in matches if (abs(kp1[m.queryIdx].pt[1]-kp2[m.trainIdx].pt[1]) < 15)]
-    mean = np.mean([640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0] for m in matches]) 
-    matches = [m for m in matches if (abs(640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0]- mean) < 70)]
+    matches = [m for m in matches if (abs(kp1[m.queryIdx].pt[1] - kp2[m.trainIdx].pt[1]) < 15)]
+
+    # mean = np.mean([640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0] for m in matches])
+    # matches = [m for m in matches if (abs(640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0]- mean) < 70)]
     # print([640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0] for m in matches])
     # print(np.mean([640 - kp1[m.queryIdx].pt[0] + kp2[m.trainIdx].pt[0] for m in matches]))
     MIN_MATCH_COUNT = min_match
-    if len(matches)>MIN_MATCH_COUNT:
+    if len(matches) > MIN_MATCH_COUNT:
         src_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
         dst_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
-
-        
-
 
         M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 10)
         matchesMask = mask.ravel().tolist()

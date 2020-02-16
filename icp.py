@@ -58,7 +58,7 @@ def nearest_neighbor(src, dst):
         indices: dst indices of the nearest neighbor
     '''
 
-    assert src.shape == dst.shape
+    # assert src.shape == dst.shape
 
     neigh = NearestNeighbors(n_neighbors=1)
     neigh.fit(dst)
@@ -101,9 +101,6 @@ def icp(A, B, init_pose=None, max_iterations=1, tolerance=0.001, distance_thresh
     for i in range(max_iterations):
         # find the nearest neighbors between the current source and destination points
         distances, indices = nearest_neighbor(src[:m,:].T, dst[:m,:].T)
-
-        
-
 
         print("step: ", i, "before: ", np.mean(distances))
         # compute the transformation between the current source and nearest destination points

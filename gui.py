@@ -13,7 +13,7 @@ import pickle
 
 scene.width = scene.height = 800
 scene.background = color.white
-scene.range = 0.3
+scene.range = 0.5
 
 run = False
 
@@ -26,24 +26,67 @@ def Runbutton(b):
         run = True
         b.text = 'Pause'
 
+
 def Readbutton(b):
-    global c
-    data_file='pickled_head/head_spheres.p'
+    if 'l' in globals():
+        global l
+        for i in range(len(l)):
+            o = l.pop()
+            o.visible = False
+            del o
+
+    if 'c' in globals():
+        global c
+        c.visible = False
+        del c
+
+    data_file = 'pickled_head/head_spheres.p'
     try:
         with open(data_file, 'rb') as file_object:
             raw_data = file_object.read()
-        spheres= pickle.loads(raw_data)
+        spheres = pickle.loads(raw_data)
     except:
         raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
 
-    c.visible=False
-    del c
     c = points(pos=spheres, size_units='world')
+    print(len(spheres))
+
+
+def ReadMeshbutton(b):
+    if 'c' in globals():
+        global c
+        c.visible = False
+        del c
+
+    if 'l' in globals():
+
+        for i in range(len(l)):
+            o = l.pop()
+            o.visible = False
+            del o
+
+    data_file = 'pickled_head/head_mesh.p'
+    try:
+        with open(data_file, 'rb') as file_object:
+            raw_data = file_object.read()
+        mesh = pickle.loads(raw_data)
+    except:
+        raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
+
+    for o in mesh:
+        if o['type'] == "pyr":
+            p = pyramid(pos=o['pos'])
+            l.append(p)
+        elif o['type'] == "point":
+            col = o['color']
+            r = float(o['radius'])
+            p = sphere(pos=o['pos'], color=col, radius=r)
+            l.append(p)
 
 
 button(text='Run', bind=Runbutton)
 button(text='Read', bind=Readbutton)
-
+button(text='Mesh', bind=ReadMeshbutton)
 
 scene.append_to_caption("""<br>Right button drag or Ctrl-drag to rotate "camera" to view scene.
 Middle button or Alt-drag to drag up or down to zoom in or out.
@@ -55,10 +98,13 @@ try:
     with open(data_file, 'rb') as file_object:
         raw_data = file_object.read()
     spheres = pickle.loads(raw_data)
+    print(len(spheres))
 except:
     raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
 
 c = points(pos=spheres, size_units='world')
+
+l = []
 
 while True:
     rate(20)
