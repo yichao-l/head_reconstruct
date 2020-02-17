@@ -159,9 +159,9 @@ class MultiHead():
 
     def join_heads_wraper (self, index1, index2):
         distances = []
-        con_threshes = [0.04]  # [0.02,0.04,0.06,0.08]
-        edge_threshes = [10]  # [10,20,30]
-        sigmas = [1.6]  # [0.5,1,2,3,4,5,6]
+        con_threshes = [0.02]  # [0.02,0.04,0.06,0.08]
+        edge_threshes = [14]  # [10,20,30]
+        sigmas = [0.5]  # [0.5,1,2,3,4,5,6]
         params = np.array(np.meshgrid(con_threshes, edge_threshes, sigmas)).T.reshape(-1, 3)
         num_param = params.shape[0]
         distance = 0

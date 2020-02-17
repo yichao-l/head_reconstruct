@@ -19,7 +19,7 @@ def float_2_rgb(num):
 class threeD_head():
     def __init__(self, data_path=None):
         self.data_path = data_path
-        self.background_color = 1
+        self.background_color = 255
         self.keypoints = []
         self.keypoints_clr = [1, 0, 0]
 
@@ -90,14 +90,14 @@ class threeD_head():
         '''
         twoD_image= self.twoD_image.copy().reshape(-1, 3)
         if not self.background_color is None:
-            img = 1 * np.ones((480 * 640, 3)) * self.background_color
+            img = 0 * np.ones((480 * 640, 3)) * self.background_color
         else:
             img = np.zeros((480 * 640, 3))
         for v in self.xy_mesh:
             img[v]=twoD_image[v]
         # save image to head_2d_image
         image_dir = "head_2d_image"
-        save_path = os.path.join(image_dir,"head_{}_{}.png".format(self.sequence_id,\
+        save_path = os.path.join(image_dir,"EDGE+ERODE+DEPTH_filter_head_{}_{}.png".format(self.sequence_id,\
         self.frame_id))
         plt.imsave(save_path,img.reshape(480,640,3))
         return img.reshape(480,640,3), save_path
@@ -179,7 +179,6 @@ class threeD_head():
         # Then center the pixels, create vpython spheres
         # and save as pickel obj for future use.
         self.reset_filters()
-        # self.edge_based_filter()
         self.filter_nan()
         self.filter_depth(depth)
         print("depth filter done.")
@@ -187,6 +186,7 @@ class threeD_head():
         print("dangling removal done")
         self.remove_background_color()
         print("color filter done.")
+        # self.edge_based_filter(erode_ite=1)
         self.center()
         self.create_vpython_spheres()
         self.save()
@@ -198,71 +198,65 @@ class threeD_head():
         '''
         # extract the s layer of the HSV image
         image = self.twoD_image.copy()
-        plt.imsave("head_2d_image/unfilter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
+        plt.imsave("head_2d_image/full_{}_{}.png".format(self.sequence_id,self.frame_id),image)
+        # plt.imsave("head_2d_image/filter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
         
-        image = cv2.imread("head_2d_image/unfilter_{}_{}.png".format(self.sequence_id,self.frame_id))
-        # blurred = cv2.GaussianBlur(image, (3, 3), 0)
-        # tight = cv2.Canny(blurred, 150, 250)
-        # kernel = np.ones((3,3))
-        # dilation = cv2.dilate(tight,kernel,iterations =30)
-        # dilation[479,:] = 255
-        # im_floodfill = binary_fill_holes(dilation)
-        # im_floodfill = im_floodfill*1
-        # im_floodfill = np.uint8(im_floodfill)
-        # erode = cv2.erode(im_floodfill,kernel,iterations=30)
-        # plt.imshow(erode);plt.show()
-        # edge = cv2.Canny(blurred,130,250)
-    
-        # for i in range (12):
-        #     _, contours, hierarchy = cv2.findContours(edge,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-        #     image_another = image.copy()
-        #     cv2.drawContours(image_another, contours, -1, (255,0,0), 0)
-        #     edge = cv2.Canny(image_another,200,250)
-        
-        # kernel = np.ones((3,3))
-        # dilation = cv2.dilate(edge,kernel,iterations =1)
-        # dilation[479,:] = 255
-        # im_floodfill = binary_fill_holes(dilation)
-        # im_floodfill = im_floodfill*1
-        # im_floodfill = np.uint8(im_floodfill)
-        image[right:,:]=0
-        # blurred = cv2.GaussianBlur(image, (3,3), 0)
-        # blurred[:100,:]=0
-        # blurred[380:,:]=0
-        
+        image = cv2.imread("head_2d_image/full_{}_{}.png".format(self.sequence_id,self.frame_id))
+        # image[right:,:]=0        
         edge = cv2.Canny(image,0,250)
         
-        for i in range (2):
+        for i in range (1):
             _, contours, hierarchy = cv2.findContours(edge,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
             image_another = image.copy()
             cv2.drawContours(image_another, contours, -1, (255,0,0), 0)
             edge = cv2.Canny(image_another,0,250)
 
         plt.imshow(edge);plt.show()
-        edge[:,480:]=0
+        edge[479,:]=1
         kernel = np.ones((3,3))
         dilation = cv2.dilate(edge,kernel,iterations =1)
-        dilation[:up,:]=0
-        dilation[down:,:]=0
-        dilation[:,right:]=0
-        dilation[:,:left]=0
+        # dilation[:up,:]=0
+        # dilation[down:,:]=0
+        # dilation[:,right:]=0
+        # dilation[:,:left]=0
         im_floodfill = binary_fill_holes(dilation)
         im_floodfill = im_floodfill*1
         im_floodfill = np.uint8(im_floodfill)
-
  
-        erode = cv2.erode(im_floodfill,kernel,iterations=10)
-        kernel = np.ones((5,5))
-        dilation = cv2.dilate(erode,kernel,iterations =6)
+        erode = cv2.erode(im_floodfill,kernel,iterations=0)
+        # kernel = np.ones((5,5))
+        # dilation = cv2.dilate(erode,kernel,iterations =6)
+        plt.imshow(erode);plt.show()
 
-        # filter
-        edge_filter = dilation > 0
-        edge_filter = np.ravel(edge_filter)
-        print(self.xy_mesh.shape)
-        self.xy_mesh = self.xy_mesh[edge_filter]
-        self.rgb = self.rgb[edge_filter]
-        self.xyz = self.xyz[edge_filter]
+        erode = erode.ravel()
+        # erode = np.sum(erode,axis=1)
+        # store the filter
+        edge_filter = erode > 0
 
+        filter = [edge_filter[i] for i in self.xy_mesh]
+        # print(filter)
+        self.xy_mesh = self.xy_mesh[filter]
+        self.rgb = self.rgb[filter]
+        self.xyz = self.xyz[filter]
+
+    def erode_filter(self,erode_iteration=1):
+
+        self.get_filtered_image()
+        # plt.imsave("head_2d_image/filter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
+        
+        image = cv2.imread("head_2d_image/filtered_{}_{}.png".format(self.sequence_id,self.frame_id))
+        kernel = np.ones((3,3))
+ 
+        erode = cv2.erode(image,kernel,iterations=erode_iteration)
+        erode = erode.reshape(-1,3)
+        erode = np.sum(erode,axis=1)
+        edge_filter = erode > 0
+
+        filter = [edge_filter[i] for i in self.xy_mesh]
+        # print(filter)
+        self.xy_mesh = self.xy_mesh[filter]
+        self.rgb = self.rgb[filter]
+        self.xyz = self.xyz[filter] 
 
 
     def filter_depth(self,depth):
@@ -485,10 +479,10 @@ class threeD_head():
                          'color': (vec(sparce_rgb[i, 0], sparce_rgb[i, 1], sparce_rgb[i, 2]))} for i in
                         range(sparce_xyz.shape[0])]
 
-        self.spheres += [
-            {'pos': vec(self.keypoints[i, 0], -self.keypoints[i, 1], -self.keypoints[i, 2]), 'radius': 0.005,
-             'color': (vec(self.keypoints_clr[0], self.keypoints_clr[1], self.keypoints_clr[2]))} for i in
-            range(self.keypoints.shape[0])]
+        # self.spheres += [
+        #     {'pos': vec(self.keypoints[i, 0], -self.keypoints[i, 1], -self.keypoints[i, 2]), 'radius': 0.005,
+        #      'color': (vec(self.keypoints_clr[0], self.keypoints_clr[1], self.keypoints_clr[2]))} for i in
+        #     range(self.keypoints.shape[0])]
 
     def save(self, file_name=None):
         '''
