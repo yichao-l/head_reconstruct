@@ -22,6 +22,7 @@ class threeD_head():
         self.background_color = 255
         self.keypoints = []
         self.keypoints_clr = [1, 0, 0]
+        self.visible = True
 
     @classmethod
     def read_from_file(cls, sequence_id, frame_id):
@@ -88,19 +89,19 @@ class threeD_head():
         get the 2d image after all filters have been applied
         :return: returns image filterd by all filter operations, black where filters have been applied
         '''
-        twoD_image= self.twoD_image.copy().reshape(-1, 3)
+        twoD_image = self.twoD_image.copy().reshape(-1, 3)
         if not self.background_color is None:
             img = 0 * np.ones((480 * 640, 3)) * self.background_color
         else:
             img = np.zeros((480 * 640, 3))
         for v in self.xy_mesh:
-            img[v]=twoD_image[v]
+            img[v] = twoD_image[v]
         # save image to head_2d_image
-        image_dir = "head_2d_image"
-        save_path = os.path.join(image_dir,"EDGE+ERODE+DEPTH_filter_head_{}_{}.png".format(self.sequence_id,\
-        self.frame_id))
-        plt.imsave(save_path,img.reshape(480,640,3))
-        return img.reshape(480,640,3), save_path
+        # image_dir = "head_2d_image"
+        # save_path = os.path.join(image_dir,"head_{}_{}.png".format(self.sequence_id,\
+        # self.frame_id))
+        # plt.imsave(save_path,img.reshape(480,640,3))
+        return img.reshape(480, 640, 3)
 
     def reset_filters(self):
         '''
@@ -149,7 +150,9 @@ class threeD_head():
             img[v] = True
         return img.reshape(480, 640)
 
-    def transform(self, R, c, t):
+    def transform(self, tform):
+
+        R, c, t = tform['rotation'], tform['scale'], tform['translation']
         '''
         transform the image:  XYZ*cR + t
         '''
