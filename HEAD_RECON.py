@@ -9,6 +9,7 @@ import cv2
 from scipy.ndimage.morphology import binary_fill_holes
 from SIFT import *
 from tqdm.notebook import tqdm
+from sklearn.neighbors import NearestNeighbors
 
 
 def float_2_rgb(num):
@@ -71,7 +72,7 @@ class threeD_head():
             raise FileExistsError (f'{data_file} could not be found, create {data_file} by using .save() first ')
     
     def full_filter(self,  depth=1.5):
-            # perform thresholding in depth axis, remove the nan pixels
+        # perform thresholding in depth axis, remove the nan pixels
         # and the flying pixels.
         # Then center the pixels, create vpython spheres
         # and save as pickel obj for future use.
@@ -315,7 +316,47 @@ class threeD_head():
         self.xyz = self.xyz - self.center_pos
         self.xyz_unfiltered = self.xyz_unfiltered - self.center_pos
 
+    def parzen_filter(self,p=2,r=0.02):
+        '''
+        Remove the "flying pixels" if there are less than p pixels within a distance r from the 3D pixel.
+        '''
+        filter = np.ones(self.xy_mesh.shape) > 0
+        start_cnt = np.sum(filter)
+        end_cnt = 0
+        remove_count = 0
+        for _ in range(5):
+            filter = np.ones(self.xy_mesh.shape) > 0
+            start_cnt = np.sum(filter)
+            length = len(filter)
+            bool_img = self.get_bool_image()
+            NN = NearestNeighbors()
+            NN.fit(self.xyz) 
+            for i,(coord,index) in enumerate (zip(self.xyz,self.xy_mesh)):
+                y=index//640
+                x=index%640
+                small_bool = bool_img[max(y-3,0):y + 4, max(x-3,0):x + 4]
+                    
+                if np.sum(small_bool)<45:
+                    print(i,length)
+                    # calculate the number of points near coord with a radius of r
+                    num_within = len(NN.radius_neighbors([coord],radius=r,return_distance=False)[0])
+
+                    if num_within < p :
+                        remove_count+=1
+                        filter[i] = False
+                # print(num_within)
+                
+                
+            self.xy_mesh=self.xy_mesh[filter]
+            self.xyz = self.xyz[filter]
+            self.rgb = self.rgb[filter]
+            end_cnt = np.sum(filter)
+        print(remove_count)
+
     def remove_dangling(self):
+        '''
+        Remove the "flying pixels" if there are less than 2 pixels in a 3x3 window around that pixel.
+        '''        
         filter =np.ones(self.xy_mesh.shape) >0
         start_cnt=np.sum(filter)
         end_cnt = 0
@@ -323,21 +364,18 @@ class threeD_head():
             filter = np.ones(self.xy_mesh.shape) > 0
             start_cnt = np.sum(filter)
             bool_img = self.get_bool_image()
-            # print("remove danlging start" , np.sum(filter))
+            
             for i, index in enumerate (self.xy_mesh):
                 y=index//640
                 x=index % 640
                 small_bool = bool_img[max(y-1,0):y + 2, max(x-1,0):x + 2]
-                # print(i, y,x ,'\n', small_bool)
-                # print(np.sum(small_bool))
+                
                 if np.sum(small_bool)<=2:
                     filter[i]=False
             self.xy_mesh=self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
-            # print("remove dangling end" ,np.sum(filter))
             end_cnt = np.sum(filter)
-            # print(end_cnt)
 
 
     def remove_color(self):
