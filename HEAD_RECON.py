@@ -324,7 +324,7 @@ class threeD_head():
         start_cnt = np.sum(filter)
         end_cnt = 0
         remove_count = 0
-        for _ in range(5):
+        for _ in range(10):
             filter = np.ones(self.xy_mesh.shape) > 0
             start_cnt = np.sum(filter)
             length = len(filter)
@@ -334,18 +334,14 @@ class threeD_head():
             for i,(coord,index) in enumerate (zip(self.xyz,self.xy_mesh)):
                 y=index//640
                 x=index%640
-                small_bool = bool_img[max(y-3,0):y + 4, max(x-3,0):x + 4]
+                small_bool = bool_img[max(y-1,0):y + 2, max(x-1,0):x + 2]
                     
-                if np.sum(small_bool)<45:
-                    print(i,length)
+                if np.sum(small_bool)<9:
                     # calculate the number of points near coord with a radius of r
                     num_within = len(NN.radius_neighbors([coord],radius=r,return_distance=False)[0])
-
                     if num_within < p :
                         remove_count+=1
                         filter[i] = False
-                # print(num_within)
-                
                 
             self.xy_mesh=self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
@@ -460,25 +456,18 @@ class threeD_head():
         Updates the filters by removing colors on the edge
         :return:
         '''
-
         verbose = False
         min_grad=0.08
         size=3
-        lb=size//2
-        ub=size//2+1
+        lb=size//2 # 1
+        ub=size//2+1 # 2
         filter = np.ones(self.xy_mesh.shape) > 0
         start_cnt=np.sum(filter)
-
         m1=np.nanmean(self.rgb_unfiltered,axis=0)
-        # print(m1)
         m2=np.nanmean(self.rgb,axis=0)
-        # print(m2)
-
         self.background_color = (m1*640*480-m2*start_cnt)/(640*480-start_cnt)
-        # print(self.background_color)
-
         end_cnt=0
-        # print(start_cnt)
+
         while end_cnt<start_cnt:
             bool_img = self.get_bool_image()
             filter = np.ones(self.xy_mesh.shape) > 0
@@ -498,7 +487,6 @@ class threeD_head():
                              print(x, y, ctr_color, self.background_color)
                              print(np.linalg.norm(ctr_color - self.background_color))
                          if np.linalg.norm(ctr_color-self.background_color) < min_grad:
-                                # print(np.linalg.norm(ctr_color - self.background_color))
                                 if verbose:
                                     print ("remove")
                                 filter[i] = False
