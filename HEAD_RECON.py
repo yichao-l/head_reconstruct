@@ -21,7 +21,6 @@ class threeD_head():
     def __init__(self, data_path=None):
         self.data_path = data_path
         self.background_color = 255
-        self.keypoints = []
         self.keypoints_clr = [1, 0, 0]
         self.visible = True
 
@@ -70,7 +69,7 @@ class threeD_head():
             return pickle.loads(raw_data)
         except:
             raise FileExistsError (f'{data_file} could not be found, create {data_file} by using .save() first ')
-    
+
     def full_filter(self,  depth=1.5):
         # perform thresholding in depth axis, remove the nan pixels
         # and the flying pixels.
@@ -133,7 +132,7 @@ class threeD_head():
     def reset_filters(self):
         '''
         Resets all the filters and create a xy_mesh variable storing the indices of the original/unfiltered pixels, which becomes
-        useful when some pixels are filtered out later (when the length of xy_mesh is less than 640*480). So e.g. we can say after several 
+        useful when some pixels are filtered out later (when the length of xy_mesh is less than 640*480). So e.g. we can say after several
         filters that the first element in the xy_mesh corresponds to the pixel 105731 in the original image.
         '''
         self.xy_mesh = np.arange(640 * 480)
@@ -180,10 +179,12 @@ class threeD_head():
 
     def transform(self, tform):
 
-        R, c, t = tform['rotation'], tform['scale'], tform['translation']
         '''
         transform the image:  XYZ*cR + t
         '''
+
+        R, c, t = tform['rotation'], tform['scale'], tform['translation']
+
         self.xyz = self.xyz.dot(c * R) + t
         self.keypoints = self.keypoints.dot(c * R) + t
 
@@ -195,6 +196,7 @@ class threeD_head():
         self.xyz = np.concatenate((self.xyz, ones.T), axis=1)
         self.xyz = self.xyz.dot(T)
         self.xyz = self.xyz[:, :3]
+
 
     def paint(self, color):
         '''
@@ -217,7 +219,7 @@ class threeD_head():
         # plt.imsave("head_2d_image/filter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
         
         image = cv2.imread("head_2d_image/full_{}_{}.png".format(self.sequence_id,self.frame_id))
-        # image[right:,:]=0        
+        # image[right:,:]=0
         edge = cv2.Canny(image,0,250)
         
         for i in range (3):
@@ -246,7 +248,7 @@ class threeD_head():
         # store the filter
         edge_filter = erode > 0
         edge_filter = np.ravel(edge_filter)
-        
+
         filter = [edge_filter[i] for i in self.xy_mesh]
         # print(filter)
         self.xy_mesh = self.xy_mesh[filter]
@@ -257,10 +259,10 @@ class threeD_head():
 
         self.get_filtered_image()
         # plt.imsave("head_2d_image/filter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
-        
+
         image = cv2.imread("head_2d_image/filtered_{}_{}.png".format(self.sequence_id,self.frame_id))
         kernel = np.ones((3,3))
- 
+
         erode = cv2.erode(image,kernel,iterations=erode_iteration)
         erode = erode.reshape(-1,3)
         erode = np.sum(erode,axis=1)
@@ -270,7 +272,7 @@ class threeD_head():
         # print(filter)
         self.xy_mesh = self.xy_mesh[filter]
         self.rgb = self.rgb[filter]
-        self.xyz = self.xyz[filter] 
+        self.xyz = self.xyz[filter]
 
 
     def filter_depth(self,depth):
@@ -330,19 +332,40 @@ class threeD_head():
             length = len(filter)
             bool_img = self.get_bool_image()
             NN = NearestNeighbors()
-            NN.fit(self.xyz) 
+            NN.fit(self.xyz)
             for i,(coord,index) in enumerate (zip(self.xyz,self.xy_mesh)):
                 y=index//640
                 x=index%640
+<<<<<<< HEAD
                 small_bool = bool_img[max(y-1,0):y + 2, max(x-1,0):x + 2]
                     
                 if np.sum(small_bool)<9:
+||||||| merged common ancestors
+                small_bool = bool_img[max(y-3,0):y + 4, max(x-3,0):x + 4]
+                    
+                if np.sum(small_bool)<45:
+                    print(i,length)
+=======
+                small_bool = bool_img[max(y-3,0):y + 4, max(x-3,0):x + 4]
+
+                if np.sum(small_bool)<45:
+                    print(i,length)
+>>>>>>> 96baaf87dc3b01526fedee0ada070bfcea17d047
                     # calculate the number of points near coord with a radius of r
                     num_within = len(NN.radius_neighbors([coord],radius=r,return_distance=False)[0])
                     if num_within < p :
                         remove_count+=1
                         filter[i] = False
+<<<<<<< HEAD
                 
+||||||| merged common ancestors
+                # print(num_within)
+                
+                
+=======
+                # print(num_within)
+
+>>>>>>> 96baaf87dc3b01526fedee0ada070bfcea17d047
             self.xy_mesh=self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
@@ -352,7 +375,7 @@ class threeD_head():
     def remove_dangling(self):
         '''
         Remove the "flying pixels" if there are less than 2 pixels in a 3x3 window around that pixel.
-        '''        
+        '''
         filter =np.ones(self.xy_mesh.shape) >0
         start_cnt=np.sum(filter)
         end_cnt = 0
@@ -360,12 +383,12 @@ class threeD_head():
             filter = np.ones(self.xy_mesh.shape) > 0
             start_cnt = np.sum(filter)
             bool_img = self.get_bool_image()
-            
+
             for i, index in enumerate (self.xy_mesh):
                 y=index//640
                 x=index % 640
                 small_bool = bool_img[max(y-1,0):y + 2, max(x-1,0):x + 2]
-                
+
                 if np.sum(small_bool)<=2:
                     filter[i]=False
             self.xy_mesh=self.xy_mesh[filter]
@@ -488,15 +511,22 @@ class threeD_head():
                              print(np.linalg.norm(ctr_color - self.background_color))
                          if np.linalg.norm(ctr_color-self.background_color) < min_grad:
                                 if verbose:
-                                    print ("remove")
+                                    print("remove")
                                 filter[i] = False
 
             end_cnt = np.sum(filter)
             # print(end_cnt)
-            self.xy_mesh=self.xy_mesh[filter]
+            self.xy_mesh = self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
             # print(self.rgb.shape)
+
+    def create_keypoints(self, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma):
+        img1 = self.get_filtered_image()
+        self.kp, self.des = get_descriptors(img1, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
+        # remove the edges that are on the edge
+        rad = 5  # minimum distance from the edge
+        self.kp, self.des = self.remove_edge_points(self.kp, self.des, rad=rad)
 
     def create_vpython_spheres(self, force_sparce=False):
         '''
@@ -515,11 +545,11 @@ class threeD_head():
         self.spheres = [{'pos': vec(sparce_xyz[i, 0], -sparce_xyz[i, 1], -sparce_xyz[i, 2]), 'radius': 0.0015,
                          'color': (vec(sparce_rgb[i, 0], sparce_rgb[i, 1], sparce_rgb[i, 2]))} for i in
                         range(sparce_xyz.shape[0])]
-
-        # self.spheres += [
-        #     {'pos': vec(self.keypoints[i, 0], -self.keypoints[i, 1], -self.keypoints[i, 2]), 'radius': 0.005,
-        #      'color': (vec(self.keypoints_clr[0], self.keypoints_clr[1], self.keypoints_clr[2]))} for i in
-        #     range(self.keypoints.shape[0])]
+        # if hasattr(self, "keypoints"):
+        #     self.spheres += [
+        #         {'pos': vec(self.keypoints[i, 0], -self.keypoints[i, 1], -self.keypoints[i, 2]), 'radius': 0.005,
+        #          'color': (vec(self.keypoints_clr[0], self.keypoints_clr[1], self.keypoints_clr[2]))} for i in
+        #         range(self.keypoints.shape[0])]
 
     def save(self, file_name=None):
         '''
