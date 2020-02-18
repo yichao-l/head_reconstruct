@@ -25,6 +25,37 @@ class MultiHead():
         this.join_heads(0, 1)
         return this
 
+    def left_eye_deviation(self,sequence_id):
+        '''
+        param: sequence_id (int) the person's number
+        Return: the mean and the deviations of the left eyes in the 3D model for the person with sequence_id.
+        '''
+        all_eye_ind = [[172576,172581,None,None,None,None,None,None,None,None,None,None,169336,170000,169380],
+                       [153974,150143,150124,None,None,None,None,None,None,None,None,None,None,147576,150775],
+                       [152103,152745,None,None,None,None,None,None,None,None,None,None,150113,149516,151469],
+                       [116190,116191,114265,None,None,None,None,None,None,None,None,None,None,110410,111688]]
+        my_eye_ind = all_eye_ind[sequence_id]
+
+        eye_coord = []
+        for frame,ind in enumerate(my_eye_ind):
+            if ind:               
+                print(frame,ind) 
+                ind_xy = np.argwhere(self.heads[frame].xy_mesh == ind)
+                eye_coord.append(self.heads[frame].xyz[ind_xy][0][0])
+                print("coordinate of the left eye: {} in frame {}".format(self.heads[frame].xyz[ind_xy][0][0],frame))
+        
+        eye_coord = np.array(eye_coord)
+        mean_coord = np.mean(eye_coord,axis=0)
+        print(mean_coord)
+        sub_mean = eye_coord - mean_coord
+        print(sub_mean)
+        distances = np.linalg.norm(sub_mean,axis=1)
+
+        print("mean coordinate: {}. Distance to each points: {}.".format(mean_coord, distances))
+        return mean_coord, distances
+
+
+
     def append_head(self, head):
         head.reset_positions()
         head.center()

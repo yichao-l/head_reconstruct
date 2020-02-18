@@ -69,7 +69,33 @@ class threeD_head():
             return pickle.loads(raw_data)
         except:
             raise FileExistsError (f'{data_file} could not be found, create {data_file} by using .save() first ')
+    
+    def full_filter(self,  depth=1.5):
+            # perform thresholding in depth axis, remove the nan pixels
+        # and the flying pixels.
+        # Then center the pixels, create vpython spheres
+        # and save as pickel obj for future use.
+        self.reset_filters()
+        self.filter_nan()
+        self.filter_depth(depth)
+        print("depth filter done.")
+        self.remove_dangling()
+        print("dangling removal done")
+        self.remove_background_color()
+        print("color filter done.")
+        # self.edge_based_filter(erode_ite=1)
+        self.center()
+        self.create_vpython_spheres()
+        self.save()
 
+    def color_eye(self,row,column):
+        self.left_eye_ind = row * 640 + column
+        image = self.twoD_image.copy()
+        image = image.reshape(-1,3)
+        image[self.left_eye_ind] = [1,0,0]
+        image = image.reshape(480,640,3)
+        plt.imshow(image); plt.show()
+        plt.imsave("left_eye_mark.png",image)
 
     def img_coord_from_xyz(self):
         '''
@@ -97,16 +123,17 @@ class threeD_head():
         for v in self.xy_mesh:
             img[v] = twoD_image[v]
         # save image to head_2d_image
-        # image_dir = "head_2d_image"
-        # save_path = os.path.join(image_dir,"head_{}_{}.png".format(self.sequence_id,\
-        # self.frame_id))
-        # plt.imsave(save_path,img.reshape(480,640,3))
+        image_dir = "head_2d_image"
+        save_path = os.path.join(image_dir,"plusedge_head_{}_{}.png".format(self.sequence_id,\
+        self.frame_id))
+        plt.imsave(save_path,img.reshape(480,640,3))
         return img.reshape(480, 640, 3)
 
     def reset_filters(self):
         '''
-        Resets all the filters
-        :return:
+        Resets all the filters and create a xy_mesh variable storing the indices of the original/unfiltered pixels, which becomes
+        useful when some pixels are filtered out later (when the length of xy_mesh is less than 640*480). So e.g. we can say after several 
+        filters that the first element in the xy_mesh corresponds to the pixel 105731 in the original image.
         '''
         self.xy_mesh = np.arange(640 * 480)
         self.xyz=self.xyz_unfiltered
@@ -176,23 +203,7 @@ class threeD_head():
         # self.rgb = self.rgb.mean(axis=1).reshape((-1,1)).dot(np.asarray([[1,1,1]])) * color
         self.rgb = self.rgb.mean(axis=1).reshape((-1,1)).dot(np.asarray([[0,0,0]])) + color
 
-    def full_filter(self,  depth=1.5):
-        # perform thresholding in depth axis, remove the nan pixels
-        # and the flying pixels.
-        # Then center the pixels, create vpython spheres
-        # and save as pickel obj for future use.
-        self.reset_filters()
-        self.filter_nan()
-        self.filter_depth(depth)
-        print("depth filter done.")
-        self.remove_dangling()
-        print("dangling removal done")
-        self.remove_background_color()
-        print("color filter done.")
-        # self.edge_based_filter(erode_ite=1)
-        self.center()
-        self.create_vpython_spheres()
-        self.save()
+
 
     def edge_based_filter(self,up=150,down=370,left=260,right=480):
         '''
@@ -208,7 +219,7 @@ class threeD_head():
         # image[right:,:]=0        
         edge = cv2.Canny(image,0,250)
         
-        for i in range (1):
+        for i in range (3):
             _, contours, hierarchy = cv2.findContours(edge,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
             image_another = image.copy()
             cv2.drawContours(image_another, contours, -1, (255,0,0), 0)
@@ -217,7 +228,7 @@ class threeD_head():
         plt.imshow(edge);plt.show()
         edge[479,:]=1
         kernel = np.ones((3,3))
-        dilation = cv2.dilate(edge,kernel,iterations =1)
+        dilation = cv2.dilate(edge,kernel,iterations =4)
         # dilation[:up,:]=0
         # dilation[down:,:]=0
         # dilation[:,right:]=0
@@ -229,13 +240,12 @@ class threeD_head():
         erode = cv2.erode(im_floodfill,kernel,iterations=0)
         # kernel = np.ones((5,5))
         # dilation = cv2.dilate(erode,kernel,iterations =6)
-        plt.imshow(erode);plt.show()
 
-        erode = erode.ravel()
         # erode = np.sum(erode,axis=1)
         # store the filter
         edge_filter = erode > 0
-
+        edge_filter = np.ravel(edge_filter)
+        
         filter = [edge_filter[i] for i in self.xy_mesh]
         # print(filter)
         self.xy_mesh = self.xy_mesh[filter]
@@ -278,7 +288,6 @@ class threeD_head():
         removes all entries where any of the xyz coordinates is nan
         '''
         nan_filter = ~np.isnan(self.xyz).any(axis=1)
-        print(self.xy_mesh.shape)
         self.xy_mesh=self.xy_mesh[nan_filter]
         
         self.xyz = self.xyz[nan_filter]
@@ -339,7 +348,7 @@ class threeD_head():
         :return:
         '''
         verbose = False
-        min_grad=0.2
+        min_grad=0.15
         fudge=0.6
         size=5
         lb=size//2
@@ -415,8 +424,7 @@ class threeD_head():
         '''
 
         verbose = False
-        min_grad=0.15
-        min_grad=0.15
+        min_grad=0.08
         size=3
         lb=size//2
         ub=size//2+1
