@@ -23,7 +23,6 @@ def remove_height_variation_from_matches(head1, head2, matches):
 
 def get_xyz_from_matches(head1, head2, matches):
     '''
-
     :param head1: a head object
     :param head2: a head object
     :param matches: amacthes object
