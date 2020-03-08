@@ -1,6 +1,6 @@
 from Procrustes2 import *
 import pickle
-import HEAD_RECON
+import single_head
 import icp
 from vpython import *
 from SIFT import *
@@ -9,6 +9,9 @@ from tqdm import tqdm_notebook as tqdm
 
 class Link():
     def __init__(self, left, right):
+        '''
+        left and right are the frame id of the heads
+        '''
         self.left = left
         self.right = right
 
@@ -51,6 +54,9 @@ class MultiHead():
 
     @classmethod
     def joined_heads(cls, head1, head2):
+        '''
+        Class method that initiate MultiHead object, with head1, head2 being two threeD_head objects.
+        '''
         this = cls()
         for head in [head1, head2]:
             this.append(head)
@@ -86,6 +92,9 @@ class MultiHead():
         return mean_coord, distances
 
     def calc_keypoints(self, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=14, SIFT_sigma=0.50):
+        '''
+        Calculate the keypoints for all the SingleHead object in self.heads.
+        '''
         for head in self.heads:
             head.create_keypoints(SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
 
@@ -96,6 +105,9 @@ class MultiHead():
         self.heads.append(head)
 
     def head_id_from_frame_id(self, frame_id):
+        '''
+        Map from actual frame id to the index of this list of heads.
+        '''
         for i, head in enumerate(self.heads):
             if head.frame_id == frame_id:
                 return i
@@ -105,7 +117,7 @@ class MultiHead():
         head1 = self.heads[self.head_id_from_frame_id(frame1)]
         head2 = self.heads[self.head_id_from_frame_id(frame2)]
         matches = get_matches(head1, head2)
-        tform, inliers, err, matches = ransac(head1, head2, matches)
+        tform, inliers, err, matches = estimate_transform(head1, head2, matches)
         head2.transform(tform)
         head1.visible = True
         head2.visible = True
@@ -142,7 +154,7 @@ class MultiHead():
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
         if not hasattr(link, "matches"):
             matches = get_matches(head1, head2)
-            tform, inliers, err, matches = ransac(head1, head2, matches)
+            tform, inliers, err, matches = estimate_transform(head1, head2, matches)
             link.add_ransac_results(tform, inliers, err, matches)
         return link
 
@@ -164,7 +176,6 @@ class MultiHead():
         if head2.visible and not head1.visible:
             d, Z, tform12 = procrustes(xyz2[link.inliers], xyz1[link.inliers], scaling=False, reflection='best')
             head1.transform(tform12)
-
         else:
             head2.transform(tform21)
         head1.visible = True

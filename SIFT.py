@@ -24,11 +24,11 @@ def remove_height_variation_from_matches(head1, head2, matches):
 
 def get_xyz_from_matches(head1, head2, matches):
     '''
-
-    :param head1: a head object
-    :param head2: a head object
-    :param matches: amacthes object
-    :return: xyz1/2 the sets of 3d points of the respective heads, corresponding to the matches
+    Get the sets of 3D points of the respective heads, corresponding to the matches.
+    :param head1: a head object.
+    :param head2: a head object.
+    :param matches: a list of DMatch objects.
+    :return: xyz1/2 the sets of 3d points of the respective heads, corresponding to the matches.
     '''
 
     matches = remove_height_variation_from_matches(head1, head2, matches)
@@ -51,9 +51,18 @@ def get_xyz_from_matches(head1, head2, matches):
     return xyz1, xyz2, matches
 
 
-def ransac(head1, head2, matches):
-    xyz1, xyz2, matches = get_xyz_from_matches(head1, head2, matches)
+def estimate_transform(head1, head2, matches):
+    '''
+    Estimate the transform from a set of match objects and two head objects using the RANSAC
+    technique and the Procrutes algorithm.
+    param head1 (SingleHead): one head as the anchor.
+    param head2 (SingleHead): another head to transform from.
+    param matches (list(DMatch)): a list of match points from two heads.
+    '''
+    kp_xyz1, kp_xyz2, matches = get_xyz_from_matches(head1, head2, matches)
 
+    # RANSAC parameters
+    # max_dist: The threshold of the distances between match points
     max_dist = 0.015
     best_count = 0
     best_err = 1000
@@ -63,17 +72,17 @@ def ransac(head1, head2, matches):
 
     with tqdm(total=No_Iterations) as progressbar:
         for j in range(No_Iterations):
-            inliers = np.random.rand(xyz2.shape[0]) > 0.5
+            kp_sample = np.random.rand(kp_xyz2.shape[0]) > 0.5
             progressbar.update(1)
             for i in range(20):
-                if np.sum(inliers) >= min_num_inliers:
+                if np.sum(kp_sample) >= min_num_inliers:
                     try:
-                        d, Z, tform = procrustes(xyz1[inliers], xyz2[inliers], scaling=False, reflection='best')
+                        d, Z, tform = procrustes(kp_xyz1[kp_sample], kp_xyz2[kp_sample], scaling=False, reflection='best')
                         R, c, t = tform['rotation'], tform['scale'], tform['translation']
-                        dist = np.linalg.norm(xyz2.dot(c * R) + t - xyz1, axis=1)
-                        err = np.sqrt(np.var(dist) / (np.sum(inliers) - min_num_inliers))
-                        last_inliers = inliers.copy()
+                        dist = np.linalg.norm(kp_xyz2.dot(c * R) + t - kp_xyz1, axis=1)
+                        last_kp_sample = kp_sample.copy()
                         inliers = dist < max_dist
+                        err = np.sqrt(np.var(dist) / (np.sum(inliers) - min_num_inliers))
                         if (np.sum(inliers) >= best_count):
                             # if (err < best_err) and np.sum(inliers)>min_num_inliers:
                             best_err = err
@@ -83,7 +92,7 @@ def ransac(head1, head2, matches):
                             best_err = err
                             best_inliers = inliers.copy()
                             best_tform = tform
-                        if np.all(last_inliers == inliers):
+                        if np.all(last_kp_sample == inliers):
                             break
                     except:
                         pass
@@ -132,12 +141,12 @@ def draw_matches(head1, head2, matches, inliers):
 
 def get_descriptors(img, SIFT_contrastThreshold=0.04, SIFT_edgeThreshold=10, SIFT_sigma=4):
     '''
+    Get a set of SIFT parameters given a color image in an array and three SIFT parameters.
     param:
-    image (array): colored image
-    return:
-    void
+    img (array): colored image
+    The others are all SIFT parameters
     '''
-
+    # scale pixel values the image
     img = img * 256
     img = cv2.cvtColor(img.astype("uint8"), cv2.COLOR_BGR2RGB)
     sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=SIFT_contrastThreshold, edgeThreshold=SIFT_edgeThreshold,
