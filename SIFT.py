@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm_notebook as tqdm
 from Procrustes2 import *
+import os
 
 
 def get_matches(head1, head2):
@@ -95,15 +96,38 @@ def ransac(head1, head2, matches):
 
 
 def draw_matches(head1, head2, matches, inliers):
-    draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
-                       singlePointColor=None, flags=2)
-
+    images_dir="images"
+    if not os.path.isdir(images_dir):
+        os.mkdir(images_dir)
+    head1.background_color=np.array([0,0,0.99])
+    head2.background_color=np.array([0,0,0.99])
     img1 = cv2.cvtColor((head1.get_filtered_image() * 256).astype("uint8"), cv2.COLOR_BGR2RGB)
     img2 = cv2.cvtColor((head2.get_filtered_image() * 256).astype("uint8"), cv2.COLOR_BGR2RGB)
 
-    img3 = cv2.drawMatches(img1, head1.kp, img2, head2.kp, [match for i, match in enumerate(matches) if inliers[i]],
-                           None, **draw_params)
-    cv2.imwrite("des_match_cleaned.png", img3)
+    draw_params = dict(matchColor=(0, 255, 0),
+                       singlePointColor=(0, 0, 255),
+                       matchesMask=inliers.ravel().tolist(),
+                       flags=0)
+
+    img3 = cv2.drawMatches(img1, head1.kp, img2, head2.kp, matches1to2=matches,
+                           outImg=None, **draw_params)
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    bottomLeftCornerOfText = (0, 40)
+    fontScale = 1
+    fontColor = (255, 255, 255)
+    lineType = 2
+
+    cv2.putText(img3, f"Sequence {head1.sequence_id}, frames {head1.frame_id} & {head2.frame_id}",
+                bottomLeftCornerOfText,
+                font,
+                fontScale,
+                fontColor,
+                lineType)
+
+    file_name=f"Seq_{head1.sequence_id}_frames_SIFT_{head1.frame_id}_{head2.frame_id}.png"
+    full_path= os.path.join(images_dir, file_name)
+    cv2.imwrite(full_path, img3)
 
 
 def get_descriptors(img, SIFT_contrastThreshold=0.04, SIFT_edgeThreshold=10, SIFT_sigma=4):

@@ -165,8 +165,6 @@ class MultiHead():
             d, Z, tform12 = procrustes(xyz2[link.inliers], xyz1[link.inliers], scaling=False, reflection='best')
             head1.transform(tform12)
 
-
-
         else:
             head2.transform(tform21)
         head1.visible = True
@@ -253,10 +251,10 @@ class MultiHead():
         head2.transform_homo(T)
         return
 
-    def save_spheres(self):
-        pickle.dump(self.spheres, open("pickled_head/head_spheres.p", 'wb'))
+    def save_spheres(self, name=None):
+        pickle.dump((self.spheres, name), open("pickled_head/head_spheres.p", 'wb'))
 
-    def create_spheres(self, sparcity=1.0):
+    def create_spheres(self, sparcity=1.0, name=None):
         self.spheres = []
         for head in self.heads:
             if head.visible:
@@ -266,7 +264,7 @@ class MultiHead():
                 else:
                     head.create_vpython_spheres(force_sparce=False)
                 self.spheres += head.spheres
-        self.save_spheres()
+        self.save_spheres(name)
 
     def save(self):
         for head in self.heads:
@@ -291,7 +289,7 @@ class MultiHead():
 
         print("Saving Completed")
 
-    def create_mesh(self):
+    def create_mesh(self, name):
         def n2v(p):
             return vec(p[0], p[1], p[2])
 
@@ -360,5 +358,5 @@ class MultiHead():
                 progressbar.set_description(f"Scanning{np.arange(0, big_angle_step, step=small_angle_step).size}")
                 progressbar.update(1)
 
-        pickle.dump(self.objects, open(f"pickled_head/head_mesh.p", 'wb'))
+        pickle.dump((self.objects,name) , open(f"pickled_head/head_mesh.p", 'wb'))
         print("completed")
