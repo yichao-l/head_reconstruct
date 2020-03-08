@@ -2,7 +2,7 @@
 GUI for rendering 3D head objects
 '''
 
-import HEAD_RECON
+import single_head
 import numpy as np
 import matplotlib.pyplot as plt
 import os

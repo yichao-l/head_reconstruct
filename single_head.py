@@ -63,6 +63,7 @@ class SingleHead():
         :param data_file:  file to load from, default name is the default file used for saving
         :return: object of  threeD_head class
         '''
+
         try:
             with open(data_file, 'rb') as file_object:
                 raw_data = file_object.read()
@@ -124,7 +125,7 @@ class SingleHead():
             img[v] = twoD_image[v]
         # save image to head_2d_image
         image_dir = "head_2d_image"
-        save_path = os.path.join(image_dir,"plusedge_head_{}_{}.png".format(self.sequence_id,\
+        save_path = os.path.join(image_dir,"head_{}_{}.png".format(self.sequence_id,\
         self.frame_id))
         plt.imsave(save_path,img.reshape(480,640,3))
         return img.reshape(480, 640, 3)
