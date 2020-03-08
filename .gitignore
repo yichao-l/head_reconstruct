@@ -7,4 +7,6 @@ __pycache__/
 *.png
 pickled_head/
 head_2d_image/
+Examples/
+asteroids/
 

@@ -13,21 +13,21 @@ import pickle
 
 scene.width = scene.height = 800
 scene.background = color.white
-scene.range = 0.5
+scene.range = 0.3
 
 run = False
 
 def Runbutton(b):
-    global run
-    if b.text == 'Pause':
-        run = False
-        b.text = 'Run'
+    global name
+    if name is None:
+        file_name = f"mesh.png"
     else:
-        run = True
-        b.text = 'Pause'
+        file_name = f"{name}.png"
+    scene.capture(file_name)
 
 
 def Readbutton(b):
+    global name
     if 'l' in globals():
         global l
         for i in range(len(l)):
@@ -44,7 +44,7 @@ def Readbutton(b):
     try:
         with open(data_file, 'rb') as file_object:
             raw_data = file_object.read()
-        spheres = pickle.loads(raw_data)
+        (spheres,name) = pickle.loads(raw_data)
     except:
         raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
 
@@ -53,6 +53,7 @@ def Readbutton(b):
 
 
 def ReadMeshbutton(b):
+    global name
     if 'c' in globals():
         global c
         c.visible = False
@@ -69,7 +70,7 @@ def ReadMeshbutton(b):
     try:
         with open(data_file, 'rb') as file_object:
             raw_data = file_object.read()
-        mesh = pickle.loads(raw_data)
+        (mesh,name) = pickle.loads(raw_data)
     except:
         raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
 
@@ -84,7 +85,7 @@ def ReadMeshbutton(b):
             l.append(p)
 
 
-button(text='Run', bind=Runbutton)
+button(text='Save', bind=Runbutton)
 button(text='Read', bind=Readbutton)
 button(text='Mesh', bind=ReadMeshbutton)
 
@@ -94,10 +95,12 @@ Middle button or Alt-drag to drag up or down to zoom in or out.
 Touch screen: pinch/extend to zoom, swipe or two-finger rotate.""")
 
 data_file = 'pickled_head/head_spheres.p'
+name=None
 try:
+
     with open(data_file, 'rb') as file_object:
         raw_data = file_object.read()
-    spheres = pickle.loads(raw_data)
+    (spheres,name)  = pickle.loads(raw_data)
     print(len(spheres))
 except:
     raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
