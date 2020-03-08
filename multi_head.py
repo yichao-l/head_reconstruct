@@ -1,6 +1,4 @@
-from Procrustes2 import *
 import pickle
-import single_head
 import icp
 from vpython import *
 from SIFT import *
