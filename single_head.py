@@ -118,7 +118,7 @@ class SingleHead():
         '''
         twoD_image = self.twoD_image.copy().reshape(-1, 3)
         if not self.background_color is None:
-            img = 0 * np.ones((480 * 640, 3)) * self.background_color
+            img = np.ones((480 * 640, 3)) * self.background_color
         else:
             img = np.zeros((480 * 640, 3))
         for v in self.xy_mesh:
