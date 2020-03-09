@@ -507,8 +507,8 @@ class SingleHead():
         img1 = self.get_filtered_image()
         self.kp, self.des = get_descriptors(img1, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
         # remove the edges that are on the edge
-        rad = 5  # minimum distance from the edge
-        self.kp, self.des = self.remove_edge_points(self.kp, self.des, rad=rad)
+        diameter = 20  # minimum distance from the edge
+        self.kp, self.des = self.remove_edge_points(self.kp, self.des, diameter=diameter)
 
     def create_vpython_spheres(self, force_sparce=False):
         '''
@@ -546,15 +546,16 @@ class SingleHead():
         data_file = f"pickled_head/head_spheres.p"
         pickle.dump(self.spheres, open(data_file, 'wb'))
 
-    def remove_edge_points(self, kps, des, rad):
+    def remove_edge_points(self, kps, des, diameter):
         '''
         Works on input sift keypoint and  descriptors and filter out the ones that are on the edge.
         '''
         coords = np.round([kp.pt for kp in kps]).astype("int")
         bw = self.get_bool_image()
-        offset = rad // 2
-        filter = [np.sum(bw[coord[1] - offset:coord[1] - offset + rad,
-                         coord[0] - offset:coord[0] - offset + rad]) == rad ** 2 for coord in coords]
+        offset = diameter // 2
+        # sum up the number of pixels in the squared within the proximity of descriptor points.
+        filter = [np.sum(bw[coord[1]-offset : coord[1]-offset+diameter,
+                         coord[0]-offset : coord[0]-offset+diameter]) == diameter ** 2 for coord in coords]
         return [kp for i, kp in enumerate(kps) if filter[i]], np.asarray([d for i, d in enumerate(des) if filter[i]])
 
     def create_profile(self):

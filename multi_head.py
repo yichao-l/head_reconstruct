@@ -53,7 +53,7 @@ class MultiHead():
     @classmethod
     def joined_heads(cls, head1, head2):
         '''
-        Class method that initiate MultiHead object, with head1, head2 being two threeD_head objects.
+        Class method that initiate MultiHead object, with head1, head2 being two SingleHead objects.
         '''
         this = cls()
         for head in [head1, head2]:
@@ -89,7 +89,7 @@ class MultiHead():
         print("mean coordinate: {}. Distance to each points: {}.".format(mean_coord, distances))
         return mean_coord, distances
 
-    def calc_keypoints(self, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=14, SIFT_sigma=0.50):
+    def calc_keypoints(self, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=20, SIFT_sigma=0.50):
         '''
         Calculate the keypoints for all the SingleHead object in self.heads.
         '''

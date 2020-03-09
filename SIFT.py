@@ -11,7 +11,8 @@ def get_matches(head1, head2):
     bf = cv2.BFMatcher()
     matches = bf.knnMatch(head1.des, head2.des, k=2)
     # unfoled the list
-    matches = [val for sublist in matches for val in sublist]
+    # matches = [val for sublist in matches for val in sublist]
+    matches = [sublist[0] for sublist in matches]
     return matches
 
 
@@ -38,11 +39,13 @@ def get_xyz_from_matches(head1, head2, matches):
     xyindex1 = xy1[:, 1] * 640 + xy1[:, 0]
     indices1 = [np.argwhere(head1.xy_mesh == ind) for ind in xyindex1]
     filter1 = [len(ind) > 0 for ind in indices1]
+
     pts2 = np.float32([head2.kp[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
     xy2 = np.round(pts2).astype("int").reshape(-1, 2)
     xyindex2 = xy2[:, 1] * 640 + xy2[:, 0]
     indices2 = [np.argwhere(head2.xy_mesh == ind) for ind in xyindex2]
     filter2 = [len(ind) > 0 for ind in indices2]
+
     filter = np.asarray(filter1) & np.asarray(filter2)
     indices1 = np.asarray(indices1)[filter]
     indices2 = np.asarray(indices2)[filter]
@@ -67,12 +70,13 @@ def estimate_transform(head1, head2, matches):
     best_count = 0
     best_err = 1000
     best_inliers = []
-    No_Iterations = 5000
+    No_Iterations = 10000
     min_num_inliers = 6
+    sample_thresh = 0.5
 
     with tqdm(total=No_Iterations) as progressbar:
         for j in range(No_Iterations):
-            kp_sample = np.random.rand(kp_xyz2.shape[0]) > 0.5
+            kp_sample = np.random.rand(kp_xyz2.shape[0]) > sample_thresh
             progressbar.update(1)
             for i in range(20):
                 if np.sum(kp_sample) >= min_num_inliers:
@@ -99,7 +103,7 @@ def estimate_transform(head1, head2, matches):
                 else:
                     break
 
-    if best_count < 6:
+    if best_count < 5:
         raise ValueError('Could not match')
     return best_tform, best_inliers, best_err, matches
 
