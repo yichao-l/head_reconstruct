@@ -80,13 +80,13 @@ class SingleHead():
         self.filter_nan()
         self.filter_depth(depth)
         print("depth filter done.")
-        self.remove_dangling()
-        print("dangling removal done")
-        self.remove_background_color()
-        print("color filter done.")
+        # self.remove_dangling()
+        # print("dangling removal done")
+        # self.remove_background_color()
+        # print("color filter done.")
         
         # self.edge_based_filter()
-        # self.parzen_filter()
+        self.parzen_filter()
         self.center()
         self.create_vpython_spheres()
         self.save()
@@ -115,8 +115,23 @@ class SingleHead():
 
     def get_filtered_image(self,filename=None):
         '''
-        get the 2d image after all filters have been applied
+        return the 2d image after all filters have been applied
         :return: returns image filterd by all filter operations, black where filters have been applied
+        '''
+        twoD_image = self.twoD_image.copy().reshape(-1, 3)
+        if not self.background_color is None:
+            img = np.ones((480 * 640, 3)) * self.background_color
+        else:
+            img = np.zeros((480 * 640, 3))
+        for v in self.xy_mesh:
+            img[v] = twoD_image[v]
+
+        return img.reshape((480, 640, 3))
+
+    def save_filtered_image(self,filename=None):
+        '''
+        save the 2d image after all filters have been applied
+        :return: None
         '''
         twoD_image = self.twoD_image.copy().reshape(-1, 3)
         if not self.background_color is None:
@@ -131,7 +146,6 @@ class SingleHead():
         self.frame_id,filename))
         img = img.reshape((480,640,3))
         plt.imsave(save_path,img)
-        # return img.reshape((480, 640, 3))
 
     def reset_filters(self):
         '''
@@ -255,12 +269,11 @@ class SingleHead():
         self.xy_mesh = self.xy_mesh[filter]
         self.rgb = self.rgb[filter]
         self.xyz = self.xyz[filter]
-        self.get_filtered_image("edge_based")
+        self.save_filtered_image("edge_based")
 
     def erode_filter(self,erode_iteration=1):
 
         self.get_filtered_image()
-        # plt.imsave("head_2d_image/filter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
 
         image = cv2.imread("head_2d_image/filtered_{}_{}.png".format(self.sequence_id,self.frame_id))
         kernel = np.ones((3,3))
@@ -286,7 +299,7 @@ class SingleHead():
         self.rgb=  self.rgb[depth_filter]
         self.xyz=  self.xyz[depth_filter]
 
-        self.get_filtered_image("depth_filter")
+        self.save_filtered_image("depth_filter")
 
 
     def filter_nan(self):
@@ -298,7 +311,7 @@ class SingleHead():
         
         self.xyz = self.xyz[nan_filter]
         self.rgb = self.rgb[nan_filter]
-        self.get_filtered_image("nan_filter")
+        self.save_filtered_image("nan_filter")
 
     def sparsify(self,sparsity):
         '''
@@ -322,7 +335,7 @@ class SingleHead():
         self.xyz = self.xyz - self.center_pos
         self.xyz_unfiltered = self.xyz_unfiltered - self.center_pos
 
-    def parzen_filter(self,p=7,r=0.005):
+    def parzen_filter(self,p=60,r=0.6):
         '''
         Remove the "flying pixels" if there are less than p pixels within a distance r from the 3D pixel.
         '''
@@ -346,10 +359,10 @@ class SingleHead():
                 x=index%640
                 small_bool = bool_img[max(y-1,0):y + 2, max(x-1,0):x + 2]
                     
-                if np.sum(small_bool)<8:
+                if np.sum(small_bool)<9:
                     # calculate the number of points near coord with a radius of r
                     num_within = len(NN.radius_neighbors([coord],radius=r,return_distance=False)[0])
-                    print(num_within)
+                    
                     if num_within < p :
                         remove_count+=1
                         filter[i] = False
@@ -359,7 +372,7 @@ class SingleHead():
             self.rgb = self.rgb[filter]
             end_cnt = np.sum(filter)
         print(remove_count)
-        self.get_filtered_image("parzen_window")
+        self.save_filtered_image("parzen_window")
 
     def remove_dangling(self):
         '''
@@ -384,7 +397,7 @@ class SingleHead():
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
             end_cnt = np.sum(filter)
-        self.get_filtered_image("remove_dangle")
+        self.save_filtered_image("remove_dangle")
 
 # to be deleted
     # def remove_color(self):
@@ -510,7 +523,7 @@ class SingleHead():
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
 
-        self.get_filtered_image("background_color")
+        self.save_filtered_image("background_color")
 
     def create_keypoints(self, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma):
         '''
@@ -545,16 +558,6 @@ class SingleHead():
         #         {'pos': vec(self.keypoints[i, 0], -self.keypoints[i, 1], -self.keypoints[i, 2]), 'radius': 0.005,
         #          'color': (vec(self.keypoints_clr[0], self.keypoints_clr[1], self.keypoints_clr[2]))} for i in
         #         range(self.keypoints.shape[0])]
-
-    def save2dImage(self, imageArray, fileSuffix=None):
-        '''
-        Save the 2D image in png format given (480*640,3) dimension image array"
-        '''
-        image_dir = "head_2d_image"
-        save_path = os.path.join(image_dir,"head_{}_{}{}.png".format(self.sequence_id,\
-        self.frame_id,fileSuffix))
-        plt.imsave(save_path,imageArray.reshape(480,640,3))
-        return imageArray.reshape(480, 640, 3)
 
     def save(self, file_name=None):
         '''
