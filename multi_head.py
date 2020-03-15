@@ -60,6 +60,34 @@ class MultiHead():
         for head in [head1, head2]:
             this.append(head)
         return this
+        
+    @classmethod
+    def load_from_pickle(cls, sequence_id):
+
+        '''
+        :param data_file:  file to load from, default name is the default file used for saving
+        :return: object of  threeD_head class
+        '''
+        data_file = f"pickled_head/mhead{sequence_id}.p"
+        try:
+
+            with open(data_file, 'rb') as file_object:
+                raw_data = file_object.read()
+            this = pickle.loads(raw_data)
+        except:
+            raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
+
+        for head in this.heads:
+            if hasattr(head, 'kp'):
+                head.kp = [cv2.KeyPoint(x=point[0][0], y=point[0][1], _size=point[1], _angle=point[2],
+                                        _response=point[3], _octave=point[4], _class_id=point[5]) for point in head.kp]
+
+        for link in this.links:
+            if hasattr(link, 'matches'):
+                link.matches = [cv2.DMatch(_distance=match[0], _imgIdx=match[1], _queryIdx=match[2], _trainIdx=match[3])
+                                for match in link.matches]
+
+        return this
 
     def left_eye_deviation(self,sequence_id):
         '''
