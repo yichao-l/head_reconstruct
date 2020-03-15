@@ -12,6 +12,8 @@ def get_matches(head1, head2):
     matches = bf.knnMatch(head1.des, head2.des, k=2)
     # unfoled the list
     # matches = [val for sublist in matches for val in sublist]
+
+    # using one nearest neighbor
     matches = [sublist[0] for sublist in matches]
     return matches
 
@@ -72,7 +74,7 @@ def estimate_transform(head1, head2, matches):
     best_inliers = []
     No_Iterations = 10000
     min_num_inliers = 6
-    sample_thresh = 0.5
+    sample_thresh = 0.6
 
     with tqdm(total=No_Iterations) as progressbar:
         for j in range(No_Iterations):

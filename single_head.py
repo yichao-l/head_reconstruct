@@ -20,7 +20,7 @@ def float_2_rgb(num):
 class SingleHead():
     def __init__(self, data_path=None):
         self.data_path = data_path
-        self.background_color = 255
+        self.background_color = 1
         self.keypoints_clr = [1, 0, 0]
         self.visible = True
 
@@ -80,11 +80,13 @@ class SingleHead():
         self.filter_nan()
         self.filter_depth(depth)
         print("depth filter done.")
-        self.remove_dangling()
-        print("dangling removal done")
-        self.remove_background_color()
-        print("color filter done.")
-        # self.edge_based_filter(erode_ite=1)
+        # self.remove_dangling()
+        # print("dangling removal done")
+        # self.remove_background_color()
+        # print("color filter done.")
+        
+        # self.edge_based_filter()
+        self.parzen_filter()
         self.center()
         self.create_vpython_spheres()
         self.save()
@@ -111,10 +113,25 @@ class SingleHead():
         self.twoD_image= image
         return image
 
-    def get_filtered_image(self):
+    def get_filtered_image(self,filename=None):
         '''
-        get the 2d image after all filters have been applied
+        return the 2d image after all filters have been applied
         :return: returns image filterd by all filter operations, black where filters have been applied
+        '''
+        twoD_image = self.twoD_image.copy().reshape(-1, 3)
+        if not self.background_color is None:
+            img = np.ones((480 * 640, 3)) * self.background_color
+        else:
+            img = np.zeros((480 * 640, 3))
+        for v in self.xy_mesh:
+            img[v] = twoD_image[v]
+
+        return img.reshape((480, 640, 3))
+
+    def save_filtered_image(self,filename=None):
+        '''
+        save the 2d image after all filters have been applied
+        :return: None
         '''
         twoD_image = self.twoD_image.copy().reshape(-1, 3)
         if not self.background_color is None:
@@ -125,10 +142,10 @@ class SingleHead():
             img[v] = twoD_image[v]
         # save image to head_2d_image
         image_dir = "head_2d_image"
-        save_path = os.path.join(image_dir,"head_{}_{}.png".format(self.sequence_id,\
-        self.frame_id))
-        plt.imsave(save_path,img.reshape(480,640,3))
-        return img.reshape(480, 640, 3)
+        save_path = os.path.join(image_dir,"head_{}_{}{}.png".format(self.sequence_id,\
+        self.frame_id,filename))
+        img = img.reshape((480,640,3))
+        plt.imsave(save_path,img)
 
     def reset_filters(self):
         '''
@@ -231,15 +248,15 @@ class SingleHead():
         edge[479,:]=1
         kernel = np.ones((3,3))
         dilation = cv2.dilate(edge,kernel,iterations =4)
-        # dilation[:up,:]=0
-        # dilation[down:,:]=0
-        # dilation[:,right:]=0
-        # dilation[:,:left]=0
+        dilation[:up,:]=0
+        dilation[down:,:]=0
+        dilation[:,right:]=0
+        dilation[:,:left]=0
         im_floodfill = binary_fill_holes(dilation)
         im_floodfill = im_floodfill*1
         im_floodfill = np.uint8(im_floodfill)
  
-        erode = cv2.erode(im_floodfill,kernel,iterations=0)
+        erode = cv2.erode(im_floodfill,kernel,iterations=7)
         # kernel = np.ones((5,5))
         # dilation = cv2.dilate(erode,kernel,iterations =6)
 
@@ -249,15 +266,14 @@ class SingleHead():
         edge_filter = np.ravel(edge_filter)
 
         filter = [edge_filter[i] for i in self.xy_mesh]
-        # print(filter)
         self.xy_mesh = self.xy_mesh[filter]
         self.rgb = self.rgb[filter]
         self.xyz = self.xyz[filter]
+        self.save_filtered_image("edge_based")
 
     def erode_filter(self,erode_iteration=1):
 
         self.get_filtered_image()
-        # plt.imsave("head_2d_image/filter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
 
         image = cv2.imread("head_2d_image/filtered_{}_{}.png".format(self.sequence_id,self.frame_id))
         kernel = np.ones((3,3))
@@ -268,7 +284,6 @@ class SingleHead():
         edge_filter = erode > 0
 
         filter = [edge_filter[i] for i in self.xy_mesh]
-        # print(filter)
         self.xy_mesh = self.xy_mesh[filter]
         self.rgb = self.rgb[filter]
         self.xyz = self.xyz[filter]
@@ -284,6 +299,8 @@ class SingleHead():
         self.rgb=  self.rgb[depth_filter]
         self.xyz=  self.xyz[depth_filter]
 
+        self.save_filtered_image("depth_filter")
+
 
     def filter_nan(self):
         '''
@@ -294,6 +311,7 @@ class SingleHead():
         
         self.xyz = self.xyz[nan_filter]
         self.rgb = self.rgb[nan_filter]
+        self.save_filtered_image("nan_filter")
 
     def sparsify(self,sparsity):
         '''
@@ -317,7 +335,7 @@ class SingleHead():
         self.xyz = self.xyz - self.center_pos
         self.xyz_unfiltered = self.xyz_unfiltered - self.center_pos
 
-    def parzen_filter(self,p=2,r=0.02):
+    def parzen_filter(self,p=60,r=0.6):
         '''
         Remove the "flying pixels" if there are less than p pixels within a distance r from the 3D pixel.
         '''
@@ -325,13 +343,17 @@ class SingleHead():
         start_cnt = np.sum(filter)
         end_cnt = 0
         remove_count = 0
+
+        # perform removal for 10 iterations
         for _ in range(10):
             filter = np.ones(self.xy_mesh.shape) > 0
             start_cnt = np.sum(filter)
             length = len(filter)
             bool_img = self.get_bool_image()
+
             NN = NearestNeighbors()
             NN.fit(self.xyz)
+            # check the number of pixels in each 3 by 3 window
             for i,(coord,index) in enumerate (zip(self.xyz,self.xy_mesh)):
                 y=index//640
                 x=index%640
@@ -340,6 +362,7 @@ class SingleHead():
                 if np.sum(small_bool)<9:
                     # calculate the number of points near coord with a radius of r
                     num_within = len(NN.radius_neighbors([coord],radius=r,return_distance=False)[0])
+                    
                     if num_within < p :
                         remove_count+=1
                         filter[i] = False
@@ -349,6 +372,7 @@ class SingleHead():
             self.rgb = self.rgb[filter]
             end_cnt = np.sum(filter)
         print(remove_count)
+        self.save_filtered_image("parzen_window")
 
     def remove_dangling(self):
         '''
@@ -373,84 +397,85 @@ class SingleHead():
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
             end_cnt = np.sum(filter)
+        self.save_filtered_image("remove_dangle")
 
+# to be deleted
+    # def remove_color(self):
+    #     '''
+    #     Updates the filters by removing colors on the edge
+    #     This is not the best function
+    #     remove_background_background_color do
+    #     :return:
+    #     '''
+    #     verbose = False
+    #     min_grad=0.15
+    #     fudge=0.6
+    #     size=5
+    #     lb=size//2
+    #     ub=size//2+1
+    #     filter =np.ones(self.xy_mesh.shape) >0
+    #     start_cnt=np.sum(filter)
+    #     end_cnt=0
+    #     # print(start_cnt)
+    #     self.background_colors=[]
+    #     while end_cnt<start_cnt:
+    #         bool_img = self.get_bool_image()
+    #         filter = np.ones(self.xy_mesh.shape) > 0
+    #         start_cnt = np.sum(filter)
+    #         for i, index in enumerate (self.xy_mesh):
+    #             y=index//640
+    #             x=index%640
+    #             if x>0 and y >0 and x < 640-lb and y < 480-lb:
 
-    def remove_color(self):
-        '''
-        Updates the filters by removing colors on the edge
-        This is not the best function
-        remove_background_background_color do
-        :return:
-        '''
-        verbose = False
-        min_grad=0.15
-        fudge=0.6
-        size=5
-        lb=size//2
-        ub=size//2+1
-        filter =np.ones(self.xy_mesh.shape) >0
-        start_cnt=np.sum(filter)
-        end_cnt=0
-        # print(start_cnt)
-        self.background_color=[]
-        while end_cnt<start_cnt:
-            bool_img = self.get_bool_image()
-            filter = np.ones(self.xy_mesh.shape) > 0
-            start_cnt = np.sum(filter)
-            for i, index in enumerate (self.xy_mesh):
-                y=index//640
-                x=index%640
-                if x>0 and y >0 and x < 640-lb and y < 480-lb:
+    #                 small_bool = bool_img[y-1:y + 2, x-1:x + 2]
+    #                 if np.sum(small_bool)<=6:
+    #                     small_rgb = self.twoD_image[y-lb:y + ub, x-lb:x + ub]
+    #                     ctr_color=small_rgb[lb,lb]
+    #                     top_cnt= np.sum(small_bool[0,:])
+    #                     btm_cnt= np.sum(small_bool[2,:])
+    #                     left_cnt= np.sum(small_bool[:,0])
+    #                     right_cnt= np.sum(small_bool[:,2])
 
-                    small_bool = bool_img[y-1:y + 2, x-1:x + 2]
-                    if np.sum(small_bool)<=6:
-                        small_rgb = self.twoD_image[y-lb:y + ub, x-lb:x + ub]
-                        ctr_color=small_rgb[lb,lb]
-                        top_cnt= np.sum(small_bool[0,:])
-                        btm_cnt= np.sum(small_bool[2,:])
-                        left_cnt= np.sum(small_bool[:,0])
-                        right_cnt= np.sum(small_bool[:,2])
-
-                        left_color=np.mean(small_rgb[:,0],axis=0)
-                        right_color=np.mean(small_rgb[:,size-1],axis=0)
-                        top_color=np.mean(small_rgb[0,:],axis=0)
-                        btm_color=np.mean(small_rgb[size-1,:],axis=0)
-                        Background = True
-                        if left_cnt == 0 and right_cnt >= 1:  # that means left is background
-                            bg_clr=left_color
-                            fg_clr=right_color
-                        elif right_cnt == 0 and left_cnt >= 1:  # that means right is background
-                            bg_clr=right_color
-                            fg_clr=left_color
-                        elif top_cnt == 0 and btm_cnt >= 1:  # that means top is background
-                            bg_clr=top_color
-                            fg_clr=btm_color
-                        elif btm_cnt == 0 and top_cnt >= 1:  # that means top is background
-                            bg_clr=btm_color
-                            fg_clr=top_color
-                        else:
-                            Background=False
-                        if Background:
-                            if verbose:
-                                print('t:', top_cnt, 'b:', btm_cnt, 'l:', left_cnt, 'r:', right_cnt)
-                            if left_cnt==0 and right_cnt>1: # that means left is background
-                                if verbose:
-                                    print(np.linalg.norm(fg_clr - ctr_color))
-                                    print(np.linalg.norm(bg_clr - ctr_color))
-                                    print(np.linalg.norm(fg_clr - bg_clr))
-                                if np.linalg.norm(bg_clr - ctr_color) * fudge < np.linalg.norm(
-                                            fg_clr - ctr_color) or (np.linalg.norm(
-                                            fg_clr - bg_clr) < min_grad):  # if center color is closest to background
-                                        if verbose:
-                                            print('Remove', top_color)
-                                        filter[i] = False
-                                        self.background_color.append(self.rgb[i])
-            end_cnt = np.sum(filter)
-            # print(end_cnt)
-            self.xy_mesh=self.xy_mesh[filter]
-            self.xyz = self.xyz[filter]
-            self.rgb = self.rgb[filter]
-        self.background_color=np.mean(self.background_color, axis=0)
+    #                     left_color=np.mean(small_rgb[:,0],axis=0)
+    #                     right_color=np.mean(small_rgb[:,size-1],axis=0)
+    #                     top_color=np.mean(small_rgb[0,:],axis=0)
+    #                     btm_color=np.mean(small_rgb[size-1,:],axis=0)
+    #                     Background = True
+    #                     if left_cnt == 0 and right_cnt >= 1:  # that means left is background
+    #                         bg_clr=left_color
+    #                         fg_clr=right_color
+    #                     elif right_cnt == 0 and left_cnt >= 1:  # that means right is background
+    #                         bg_clr=right_color
+    #                         fg_clr=left_color
+    #                     elif top_cnt == 0 and btm_cnt >= 1:  # that means top is background
+    #                         bg_clr=top_color
+    #                         fg_clr=btm_color
+    #                     elif btm_cnt == 0 and top_cnt >= 1:  # that means top is background
+    #                         bg_clr=btm_color
+    #                         fg_clr=top_color
+    #                     else:
+    #                         Background=False
+    #                     if Background:
+    #                         if verbose:
+    #                             print('t:', top_cnt, 'b:', btm_cnt, 'l:', left_cnt, 'r:', right_cnt)
+    #                         if left_cnt==0 and right_cnt>1: # that means left is background
+    #                             if verbose:
+    #                                 print(np.linalg.norm(fg_clr - ctr_color))
+    #                                 print(np.linalg.norm(bg_clr - ctr_color))
+    #                                 print(np.linalg.norm(fg_clr - bg_clr))
+    #                             if np.linalg.norm(bg_clr - ctr_color) * fudge < np.linalg.norm(
+    #                                         fg_clr - ctr_color) or (np.linalg.norm(
+    #                                         fg_clr - bg_clr) < min_grad):  # if center color is closest to background
+    #                                     if verbose:
+    #                                         print('Remove', top_color)
+    #                                     filter[i] = False
+    #                                     self.background_colors.append(self.rgb[i])
+    #         end_cnt = np.sum(filter)
+    #         # print(end_cnt)
+    #         self.xy_mesh=self.xy_mesh[filter]
+    #         self.xyz = self.xyz[filter]
+    #         self.rgb = self.rgb[filter]
+    #     self.background_colors=np.mean(self.background_colors, axis=0)
 
     def remove_background_color(self):
         '''
@@ -466,7 +491,7 @@ class SingleHead():
         start_cnt=np.sum(filter)
         m1=np.nanmean(self.rgb_unfiltered,axis=0)
         m2=np.nanmean(self.rgb,axis=0)
-        self.background_color = (m1*640*480-m2*start_cnt)/(640*480-start_cnt)
+        self.bg_color = (m1*640*480-m2*start_cnt)/(640*480-start_cnt)
         end_cnt=0
 
         while end_cnt<start_cnt:
@@ -485,19 +510,20 @@ class SingleHead():
                     if np.sum(small_bool)<= 6:
                          if verbose:
                              print(small_bool)
-                             print(x, y, ctr_color, self.background_color)
-                             print(np.linalg.norm(ctr_color - self.background_color))
-                         if np.linalg.norm(ctr_color-self.background_color) < min_grad:
+                             print(x, y, ctr_color, self.bg_color)
+                             print(np.linalg.norm(ctr_color - self.bg_color))
+                         if np.linalg.norm(ctr_color-self.bg_color) < min_grad:
                                 if verbose:
                                     print("remove")
                                 filter[i] = False
 
             end_cnt = np.sum(filter)
-            # print(end_cnt)
+
             self.xy_mesh = self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
-            # print(self.rgb.shape)
+
+        self.save_filtered_image("background_color")
 
     def create_keypoints(self, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma):
         '''
