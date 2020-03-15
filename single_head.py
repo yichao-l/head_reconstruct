@@ -80,13 +80,18 @@ class SingleHead():
         self.filter_nan()
         self.filter_depth(depth)
         print("depth filter done.")
+
+        # experiemntal filter 1: dangling pixel filter.
         # self.remove_dangling()
         # print("dangling removal done")
+
         # self.remove_background_color()
         # print("color filter done.")
-        
-        # self.edge_based_filter()
-        self.parzen_filter()
+        # experimental filter 2: edge based filter.  
+        self.edge_based_filter()
+
+        # experiemntal filter 3: parzen window filter
+        # self.parzen_filter()
         self.center()
         self.create_vpython_spheres()
         self.save()
@@ -232,10 +237,8 @@ class SingleHead():
         # extract the s layer of the HSV image
         image = self.twoD_image.copy()
         plt.imsave("head_2d_image/full_{}_{}.png".format(self.sequence_id,self.frame_id),image)
-        # plt.imsave("head_2d_image/filter_{}_{}.png".format(self.sequence_id,self.frame_id),image)
         
         image = cv2.imread("head_2d_image/full_{}_{}.png".format(self.sequence_id,self.frame_id))
-        # image[right:,:]=0
         edge = cv2.Canny(image,0,250)
         
         for i in range (3):
@@ -245,6 +248,7 @@ class SingleHead():
             edge = cv2.Canny(image_another,0,250)
 
         plt.imshow(edge);plt.show()
+        # manually crop out the person
         edge[479,:]=1
         kernel = np.ones((3,3))
         dilation = cv2.dilate(edge,kernel,iterations =4)
@@ -257,11 +261,7 @@ class SingleHead():
         im_floodfill = np.uint8(im_floodfill)
  
         erode = cv2.erode(im_floodfill,kernel,iterations=7)
-        # kernel = np.ones((5,5))
-        # dilation = cv2.dilate(erode,kernel,iterations =6)
 
-        # erode = np.sum(erode,axis=1)
-        # store the filter
         edge_filter = erode > 0
         edge_filter = np.ravel(edge_filter)
 
@@ -484,41 +484,53 @@ class SingleHead():
         '''
         verbose = False
         min_grad=0.08
+        # size of the window
         size=3
+        # lower bound and upper bound offset
         lb=size//2 # 1
         ub=size//2+1 # 2
         filter = np.ones(self.xy_mesh.shape) > 0
+        # number of pixel points before processing
         start_cnt=np.sum(filter)
+        # mean colors
         m1=np.nanmean(self.rgb_unfiltered,axis=0)
         m2=np.nanmean(self.rgb,axis=0)
         self.bg_color = (m1*640*480-m2*start_cnt)/(640*480-start_cnt)
         end_cnt=0
 
+        # hault when there are still pixels being removed from the image
         while end_cnt<start_cnt:
             bool_img = self.get_bool_image()
             filter = np.ones(self.xy_mesh.shape) > 0
             start_cnt = np.sum(filter)
+            # loop through all the unfiltered pixels
             for i, index in enumerate (self.xy_mesh):
+                # convert to x,y coordinate in the 2D image
                 y=index//640
                 x=index%640
                 verbose =(y==200 and x > 270  and x < 300)
                 verbose=False
                 if x>0 and y >0 and x < 640-lb and y < 480-lb:
+                    # sum the pixels in the window around the current pixel
                     small_bool = bool_img[y-1:y + 2, x-1:x + 2]
                     small_rgb = self.twoD_image[y - lb:y + ub, x - lb:x + ub]
                     ctr_color = small_rgb[lb, lb]
+
+                    # if the pixel is on the edge of the filtered image
                     if np.sum(small_bool)<= 6:
-                         if verbose:
-                             print(small_bool)
-                             print(x, y, ctr_color, self.bg_color)
-                             print(np.linalg.norm(ctr_color - self.bg_color))
-                         if np.linalg.norm(ctr_color-self.bg_color) < min_grad:
-                                if verbose:
-                                    print("remove")
-                                filter[i] = False
-
+                        if verbose:
+                            print(small_bool)
+                            print(x, y, ctr_color, self.bg_color)
+                            print(np.linalg.norm(ctr_color - self.bg_color))
+                        
+                        # if the pixel is too similar to the background color, then removed
+                        if np.linalg.norm(ctr_color-self.bg_color) < min_grad:
+                            if verbose:
+                                print("remove")
+                            filter[i] = False
+            # compute the number of left over pixel in the image
             end_cnt = np.sum(filter)
-
+            # update the xy_mesh
             self.xy_mesh = self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
