@@ -3,6 +3,7 @@ import icp
 from vpython import *
 from SIFT import *
 from tqdm import tqdm_notebook as tqdm
+from refine import *
 
 
 class Link():
@@ -199,13 +200,22 @@ class MultiHead():
         head2.keypoints = xyz2[link.inliers]
         head2.keypoints_clr = [0, 1, 0]
 
-        d, Z, tform21 = procrustes(xyz1[link.inliers], xyz2[link.inliers], scaling=False, reflection='best')
-
         if head2.visible and not head1.visible:
             d, Z, tform12 = procrustes(xyz2[link.inliers], xyz1[link.inliers], scaling=False, reflection='best')
             head1.transform(tform12)
+            self.icp_transform(link.left, link.right,
+                               max_iterations=40)
+            refine3d(self, link.left, link.right)
+            refine3d(self, link.left, link.right)
+
         else:
+            d, Z, tform21 = procrustes(xyz1[link.inliers], xyz2[link.inliers], scaling=False, reflection='best')
             head2.transform(tform21)
+            self.icp_transform(link.right, link.left,
+                               max_iterations=40)
+            refine3d(self, link.right, link.left)
+            refine3d(self, link.right, link.left)
+
         head1.visible = True
         head2.visible = True
         draw_matches(head1, head2, link.matches, link.inliers)
@@ -268,15 +278,15 @@ class MultiHead():
         self.join_heads(index1, index2, params[min_idx][0], params[min_idx][1], params[min_idx][2], searching=False)
         return
 
-    def icp_transform(self, frame1, frame2, r=0.05, file_name='pickled_head/after_icp.p'):
+    def icp_transform(self, frame1, frame2, r=0.05, max_iterations=1):
         '''
         param:
         r (float): sampleing rate for head1 
         file_name (string): file name of combined spheres
         '''
         # perform one iteration of icp algorithm
-        head1 = self.heads[self.headshead_id_from_frame_id(frame1)]
-        head2 = self.heads[self.headshead_id_from_frame_id(frame2)]
+        head1 = self.heads[self.head_id_from_frame_id(frame1)]
+        head2 = self.heads[self.head_id_from_frame_id(frame2)]
 
         # sample both array to the same size
         n_sample = int(head1.xyz.shape[0] * r)
@@ -284,7 +294,7 @@ class MultiHead():
         n_2 = head2.xyz.shape[0]
         sample_1 = np.random.choice(np.arange(n_1), n_sample)
         sample_2 = np.random.choice(np.arange(n_2), n_sample)
-        T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2])
+        T, distance, ite = icp.icp(head1.xyz[sample_1], head2.xyz[sample_2], max_iterations=max_iterations)
 
         # transform head2
         head2.transform_homo(T)

@@ -66,7 +66,7 @@ def nearest_neighbor(src, dst):
     return distances.ravel(), indices.ravel()
 
 
-def icp(A, B, init_pose=None, max_iterations=1, tolerance=0.001, distance_threshold=0.04):
+def icp(A, B, init_pose=None, max_iterations=1, tolerance=0.0001, distance_threshold=0.04):
     '''
     The Iterative Closest Point method: finds best-fit transform that maps points A on to points B
     Input:
@@ -80,38 +80,43 @@ def icp(A, B, init_pose=None, max_iterations=1, tolerance=0.001, distance_thresh
         distances: Euclidean distances (errors) of the nearest neighbor
         i: number of iterations to converge
     '''
-    print("start icp")
+    verbose = False
+    if verbose:
+        print("start icp")
     assert A.shape == B.shape
 
     # get number of dimensions
     m = A.shape[1]
 
     # make points homogeneous, copy them to maintain the originals
-    src = np.ones((m+1,A.shape[0]))
-    dst = np.ones((m+1,B.shape[0]))
-    src[:m,:] = np.copy(A.T)
-    dst[:m,:] = np.copy(B.T)
+    src = np.ones((m + 1, A.shape[0]))
+    dst = np.ones((m + 1, B.shape[0]))
+    src[:m, :] = np.copy(A.T)
+    dst[:m, :] = np.copy(B.T)
 
     # apply the initial pose estimation
     if init_pose is not None:
         src = np.dot(init_pose, src)
 
-    prev_error = 0
+    prev_error = -1
 
     for i in range(max_iterations):
         # find the nearest neighbors between the current source and destination points
-        distances, indices = nearest_neighbor(src[:m,:].T, dst[:m,:].T)
-
-        print("step: ", i, "before: ", np.mean(distances))
+        distances, indices = nearest_neighbor(src[:m, :].T, dst[:m, :].T)
+        filter = distances < 0.02
+        if verbose:
+            print(distances.shape, indices.shape, src.shape)
+            print("step: ", i, "before: ", np.mean(distances))
         # compute the transformation between the current source and nearest destination points
-        T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
-        print("found the best fit transform",i)
+        T, _, _ = best_fit_transform(src[:m, :].T[filter], dst[:m, indices].T[filter])
+        if verbose:
+            print("found the best fit transform", i)
         # update the current source
         src = np.dot(T, src)
 
         # check error
         mean_error = np.mean(distances)
-        if np.abs(prev_error - mean_error) < tolerance:
+        if np.abs(prev_error - mean_error) < tolerance and prev_error > 0:
             break
         prev_error = mean_error
 
