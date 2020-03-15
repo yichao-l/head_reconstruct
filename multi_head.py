@@ -61,16 +61,45 @@ class MultiHead():
             this.append(head)
         return this
 
-    def left_eye_deviation(self,sequence_id):
+    @classmethod
+    def load_from_pickle(cls, sequence_id):
+
+        '''
+        :param data_file:  file to load from, default name is the default file used for saving
+        :return: object of  threeD_head class
+        '''
+        data_file = f"pickled_head/mhead{sequence_id}.p"
+        try:
+
+            with open(data_file, 'rb') as file_object:
+                raw_data = file_object.read()
+            this = pickle.loads(raw_data)
+        except:
+            raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
+
+        for head in this.heads:
+            if hasattr(head, 'kp'):
+                head.kp = [cv2.KeyPoint(x=point[0][0], y=point[0][1], _size=point[1], _angle=point[2],
+                                        _response=point[3], _octave=point[4], _class_id=point[5]) for point in head.kp]
+
+        for link in this.links:
+            if hasattr(link, 'matches'):
+                link.matches = [cv2.DMatch(_distance=match[0], _imgIdx=match[1], _queryIdx=match[2], _trainIdx=match[3])
+                                for match in link.matches]
+
+        return this
+
+    def left_eye_deviation(self):
         '''
         param: sequence_id (int) the person's number
         Return: the mean and the deviations of the left eyes in the 3D model for the person with sequence_id.
         '''
-        all_eye_ind = [[172576,172581,None,None,None,None,None,None,None,None,None,None,169336,170000,169380],
-                       [153974,150143,150124,None,None,None,None,None,None,None,None,None,None,147576,150775],
-                       [152103,152745,None,None,None,None,None,None,None,None,None,None,150113,149516,151469],
-                       [116190,116191,114265,None,None,None,None,None,None,None,None,None,None,110410,111688]]
-        my_eye_ind = all_eye_ind[sequence_id]
+        all_eye_ind = [
+            [172576, 172581, None, None, None, None, None, None, None, None, None, None, 169336, 170000, 169380],
+            [153974, 150143, 150124, None, None, None, None, None, None, None, None, None, None, 147576, 150775],
+            [152103, 152745, None, None, None, None, None, None, None, None, None, None, 150113, 149516, 151469],
+            [116190, 116191, 114265, None, None, None, None, None, None, None, None, None, None, 110410, 111688]]
+        my_eye_ind = all_eye_ind[self.heads[0].sequence_id - 1]
 
         eye_coord = []
         for frame, ind in enumerate(my_eye_ind):
@@ -90,7 +119,7 @@ class MultiHead():
         print("mean coordinate: {}. Distance to each points: {}.".format(mean_coord, distances))
         return mean_coord, distances
 
-    def calc_keypoints(self, SIFT_contrastThreshold=0.02, SIFT_edgeThrejshold=10, SIFT_sigma=0.50):
+    def calc_keypoints(self, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=10, SIFT_sigma=0.50):
         '''
         Calculate the keypoints for all the SingleHead object in self.heads.
         '''
@@ -180,14 +209,12 @@ class MultiHead():
             self.icp_transform(link.left, link.right,
                                max_iterations=40)
             refine3d(self, link.left, link.right)
-            refine3d(self, link.left, link.right)
 
         else:
             d, Z, tform21 = procrustes(xyz1[link.inliers], xyz2[link.inliers], scaling=False, reflection='best')
             head2.transform(tform21)
             self.icp_transform(link.right, link.left,
                                max_iterations=40)
-            refine3d(self, link.right, link.left)
             refine3d(self, link.right, link.left)
 
         head1.visible = True
