@@ -60,7 +60,7 @@ class MultiHead():
         for head in [head1, head2]:
             this.append(head)
         return this
-        
+
     @classmethod
     def load_from_pickle(cls, sequence_id):
 
@@ -234,16 +234,16 @@ class MultiHead():
         if head2.visible and not head1.visible:
             d, Z, tform12 = procrustes(xyz2[link.inliers], xyz1[link.inliers], scaling=False, reflection='best')
             head1.transform(tform12)
-            self.icp_transform(link.left, link.right,
+            # self.icp_transform(link.left, link.right,
                                max_iterations=40)
-            refine3d(self, link.left, link.right)
+            # refine3d(self, link.left, link.right)
 
         else:
             d, Z, tform21 = procrustes(xyz1[link.inliers], xyz2[link.inliers], scaling=False, reflection='best')
             head2.transform(tform21)
-            self.icp_transform(link.right, link.left,
+            # self.icp_transform(link.right, link.left,
                                max_iterations=40)
-            refine3d(self, link.right, link.left)
+            # refine3d(self, link.right, link.left)
 
         head1.visible = True
         head2.visible = True

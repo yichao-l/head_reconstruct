@@ -20,7 +20,7 @@ def float_2_rgb(num):
 class SingleHead():
     def __init__(self, data_path=None):
         self.data_path = data_path
-        self.background_color = 1
+        self.background_color = [0,0,1]
         self.keypoints_clr = [1, 0, 0]
         self.visible = True
 
@@ -85,13 +85,13 @@ class SingleHead():
         # self.remove_dangling()
         # print("dangling removal done")
 
-        # self.remove_background_color()
+        self.remove_background_color()
         # print("color filter done.")
         # experimental filter 2: edge based filter.  
-        self.edge_based_filter()
+        # self.edge_based_filter()
 
         # experiemntal filter 3: parzen window filter
-        # self.parzen_filter()
+        self.parzen_filter()
         self.center()
         self.create_vpython_spheres()
         self.save()
@@ -335,7 +335,7 @@ class SingleHead():
         self.xyz = self.xyz - self.center_pos
         self.xyz_unfiltered = self.xyz_unfiltered - self.center_pos
 
-    def parzen_filter(self,p=60,r=0.6):
+    def parzen_filter(self,p=7,r=0.005):
         '''
         Remove the "flying pixels" if there are less than p pixels within a distance r from the 3D pixel.
         '''
@@ -359,10 +359,10 @@ class SingleHead():
                 x=index%640
                 small_bool = bool_img[max(y-1,0):y + 2, max(x-1,0):x + 2]
                     
-                if np.sum(small_bool)<9:
+                if np.sum(small_bool)<8:
                     # calculate the number of points near coord with a radius of r
                     num_within = len(NN.radius_neighbors([coord],radius=r,return_distance=False)[0])
-                    
+                    print(num_within)
                     if num_within < p :
                         remove_count+=1
                         filter[i] = False
