@@ -39,18 +39,13 @@ for link_idx in range(14):  # iterate through the links between heads
 # # Method C
 only_first_n = 15
 mhead.reset_all_head_positions()
-link_index, err = mhead.get_next_unpositioned_link(method="coverage")
+link_index, _ = mhead.get_next_unpositioned_link(method="coverage")
 positioned_head_count = 0
-joined_heads = set()
 while (not link_index is None) and (positioned_head_count < only_first_n or only_first_n == -1):
     mhead.links[link_index].print_short()
-    joined_heads.add(mhead.links[link_index].left)
-    joined_heads.add(mhead.links[link_index].right)
-    mhead.heads[mhead.links[link_index].right - 1].background_color = np.asarray([0, 0, 1])
-    mhead.heads[mhead.links[link_index].left - 1].background_color = np.asarray([0, 0, 1])
-    foo = mhead.all_transforms_from_link(mhead.links[link_index], method="coverage", ICP=True, Refine_Range=False,
-                                         Refine_local=False)
-    link_index, err = mhead.get_next_unpositioned_link(method="coverage")
+    mhead.all_transforms_from_link(mhead.links[link_index], method="coverage", ICP=True, Refine_Range=False,
+                                   Refine_local=False)
+    link_index, _ = mhead.get_next_unpositioned_link(method="coverage")
     positioned_head_count = max(positioned_head_count + 1, 2)
 mhead.left_eye_deviation()
 
