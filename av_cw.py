@@ -1,25 +1,27 @@
 '''
 Top Level Code for AV Coursework
-Merges individual point clouds into a single mulithea object
+Merges individual point clouds into a single mulithead object
 Produces images of the individual merging steps and calculates performance metrics
 '''
-
 from single_head import SingleHead
 from multi_head import MultiHead
 
+# Seqence number in the data, range from 1 to 4.
 Sequence = 1
 
+# Frame number in the data, range from 1 to 15.
 for frame_idx in range(1, 16):  # loop through all frames
-    # read the data from the file, define by Sequence and frame_idx and store the data in a SingeHead object
+    # Read the data from the file, define by Sequence and frame_idx and store the data in a SingeHead object
     head = SingleHead.read_from_file(Sequence,
                                      frame_idx)
-    # apply all filters
+    # apply all filters to remove the unwanted cloud points.
     head.apply_all_filters()
     # save the processed head
     head.save()
 
+# create a list of all the heads, from the save SingleHead objects
 list_of_all_heads = [SingleHead.load_from_pickle(Sequence, i) for i in
-                     range(1, 16)]  # create a list of all the heads, from the save SingleHead objects
+                     range(1, 16)]  
 
 # create a MultiHead object from the list:
 mhead = MultiHead.create_from_heads(list_of_all_heads)
@@ -28,9 +30,15 @@ mhead.calc_all_sift_keypoints()
 # calculate the SIFT transform for each pair of adjacent heads, each pair of adjacnt SingleHeads shares a Link Object:
 mhead.calc_all_sift_transforms()
 
+Method A
 for link_idx in range(14):  # iterate through the links between heads
     # calculate and perform all transformations for each link:
     mhead.all_transforms_from_link(mhead.links[link_idx])
+    
+# # Method C
+# for _ in range(14):
+#     best_link_index, err = mhead.get_next_unpositioned_link()
+#     mhead.transform_from_link(mhead.links[best_link_index])
 
 # create a series of png images for the spheres
 mhead.create_png_series()
