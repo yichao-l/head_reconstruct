@@ -536,7 +536,7 @@ class MultiHead():
 
     def try_methods(self,refine_range=False, refine_local=False):
         self.results = pd.DataFrame(
-            columns=['method,', 'sift_transform_method', 'icp', 'refine_range', 'refine_local', 'mean_dist'])
+            columns=['method', 'sift_transform_method', 'icp', 'refine_range', 'refine_local', 'mean_dist'])
 
         for method in ['A','C']:
             for sift_transform_method in ["coverage","matches","dynamic"]:
