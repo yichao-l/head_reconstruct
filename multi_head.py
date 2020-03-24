@@ -6,6 +6,7 @@ from tqdm.autonotebook import tqdm
 from refine import *
 from link import Link
 import numpy as np
+from math import isnan
 
 
 class MultiHead():
@@ -154,22 +155,27 @@ class MultiHead():
     #     draw_matches(head1, head2, matches, inliers)
     #     return True
 
-    def get_next_unpositioned_link(self):
+    def get_next_unpositioned_link(self, method="coverage"):
+        if not method in ["coverage", "matches", "dynamic"]:
+            raise ValueError
         best_error = 1
+        best_coverage = -1
         best_link_index = None
         any_head_positioned = False
         for head in self.heads:
             if head.visible:
                 any_head_positioned = True
-        print("any_head_positioned", any_head_positioned)
 
         for i, link in enumerate(self.links):
             head_left = self.heads[self.head_id_from_frame_id(link.left)]
             head_right = self.heads[self.head_id_from_frame_id(link.right)]
             # if this is the best error so far and either (one of the 2 heads is visible, or none of all the heads is visible)
-            if link.err < best_error and ((head_left.visible and not head_right.visible) or (
-                    (not head_left.visible) and head_right.visible) or not any_head_positioned):
-                best_error = link.err
+            possibly_this_link = ((head_left.visible and not head_right.visible) or (
+                    (not head_left.visible) and head_right.visible) or not any_head_positioned)
+            if ((link.err_matches < best_error and method == "matches") or (
+                    link.coverage_all_points > best_coverage and method == "coverage")) and possibly_this_link:
+                best_error = link.err_matches
+                best_coverage = link.coverage_all_points
                 best_link_index = i
         return best_link_index, best_error
 
@@ -198,16 +204,24 @@ class MultiHead():
             link.add_ransac_results(inliers_all_points, coverage_all_points, inliers_matches, err_matches, matches)
         return link
 
-    def sift_transform_from_link(self, link, right_to_left, all_points=True):
-
+    def sift_transform_from_link(self, link, right_to_left, method="coverage"):
+        if not method in ["coverage", "matches", "dynamic"]:
+            raise ValueError
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
         # if not hasattr(link, "matches"):
         link = self.ransac_from_link(link)
         xyz1, xyz2, matches = get_xyz_from_matches(head1, head2, link.matches)
-        if all_points:
+        if method == "dynamic":
+            if isnan(link.err_matches):
+                inliers = link.inliers_all_points
+            elif link.err_matches < 0.01:
+                inliers = link.inliers_matches
+            else:
+                inliers = link.inliers_all_points
+        elif method == "coverage":
             inliers = link.inliers_all_points
-        else:
+        elif method == "matches":
             inliers = link.inliers_matches
         head1.keypoints = xyz1[inliers]
         head2.keypoints = xyz2[inliers]
@@ -218,12 +232,10 @@ class MultiHead():
         if right_to_left:
             d, Z, tform12 = procrustes(xyz2[inliers], xyz1[inliers])
             t = tform12['rotation']
-            print(t)
             head1.transform(tform12)
         else:
             d, Z, tform21 = procrustes(xyz1[inliers], xyz2[inliers])
             t = tform21['rotation']
-            print(t)
 
             head2.transform(tform21)
         draw_matches(head1, head2, link.matches, inliers)
@@ -258,14 +270,12 @@ class MultiHead():
                                       pos_over_range=cartesian_over_range, filter=filter)
         return filter, score
 
-    def all_transforms_from_link(self, link):
+    def all_transforms_from_link(self, link, method="coverage", ICP=True, Refine_Range=True, Refine_local=True):
         '''
         :param link: The link for which all transforms are to be performed
         :return: the link itslef, unmodified.
-
         Identifies which head is to be transformed ( the one that is not visible)
         Transforms the head that is not visible and makes it visble (headx.visible = True)
-
         '''
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
@@ -277,26 +287,32 @@ class MultiHead():
             self.last_head_id = self.head_id_from_frame_id(link.left)
 
         # perform the transformation based on the calculated SIFT matches:
-        self.sift_transform_from_link(link, right_to_left)
+        self.sift_transform_from_link(link, right_to_left, method=method)
         # perform the ICP transformation
-        self.icp_transform_from_link(link, right_to_left)
+        if ICP:
+            self.icp_transform_from_link(link, right_to_left)
 
         # perform the refine operation
         filter = None
         # first peform a
-        filter, score = self.refine_transform_from_link(link, right_to_left, angle_over_range=True,
-                                                        cartesian_over_range=True,
-                                                        filter=filter)
-        filter, score = self.refine_transform_from_link(link, right_to_left, angle_over_range=True,
-                                                        cartesian_over_range=True,
-                                                        filter=filter)
-        last_score = 0
-        before_last_score = 0
-        while score > last_score or score > before_last_score:
-            before_last_score = last_score
-            last_score = score
-            filter, score = self.refine_transform_from_link(link, right_to_left, filter=filter)
-        self.icp_transform_from_link(link, right_to_left)
+
+        if Refine_Range:
+            filter, score = self.refine_transform_from_link(link, right_to_left, angle_over_range=True,
+                                                            cartesian_over_range=True,
+                                                            filter=filter)
+            filter, score = self.refine_transform_from_link(link, right_to_left, angle_over_range=True,
+                                                            cartesian_over_range=True,
+                                                            filter=filter)
+        else:
+            score = 1000  # just very high
+        if Refine_local:
+            last_score = 0
+            before_last_score = 0
+            while score > last_score or score > before_last_score:
+                before_last_score = last_score
+                last_score = score
+                filter, score = self.refine_transform_from_link(link, right_to_left, filter=filter)
+            self.icp_transform_from_link(link, right_to_left)
         head1.visible = True
         head2.visible = True
         return link

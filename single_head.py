@@ -6,8 +6,6 @@ from SIFT import *
 from tqdm.autonotebook import tqdm
 from sklearn.neighbors import NearestNeighbors
 
-
-
 def float_2_rgb(num):
     packed = struct.pack('!f', num)
     return [c for c in packed][1:]
