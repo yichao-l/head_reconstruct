@@ -1,5 +1,17 @@
 import numpy as np
+'''
+The Link object contains all required variables to store the results of SIFT matches between two subsequent frames.
 
+It is defined by:
+The IDs of two Single Heads, self.left and self.right
+the result of the RANAC operation based on the SIFT matches:
+    The matches object, self.macthes: indicating which  
+    the inliers object, self.inliers: a boolean filter to select the calcualted matches from self.matches
+    the resulting transformation, tform and the error metric, indicating how good the match is.
+      
+    
+
+'''
 
 class Link():
     def __init__(self, left, right):
@@ -13,29 +25,36 @@ class Link():
         self.matches = matches
 
     def reset(self):
-        if hasattr(self, "tform"):
-            del self.tform
+        if hasattr(self, "inliers_all_points"):
+            del self.inliers_all_points
+        if hasattr(self, "coverage_all_points"):
+            del self.coverage_all_points
+        if hasattr(self, "inliers_matches"):
+            del self.inliers_matches
+        if hasattr(self, "err_matches"):
+            del self.err_matches
         if hasattr(self, "matches"):
             del self.matches
-        if hasattr(self, "inliers"):
-            del self.inliers
-        if hasattr(self, "err"):
-            del self.err
 
-    def add_ransac_results(self, tform, inliers, err, matches):
-        self.tform = tform
-        self.inliers = inliers
-        self.err = err
+    def add_ransac_results(self, inliers_all_points, coverage_all_points, inliers_matches, err_matches, matches):
+
+        self.inliers_all_points = inliers_all_points
+        self.coverage_all_points = coverage_all_points
+        self.inliers_matches = inliers_matches
+        self.err_matches = err_matches
         self.matches = matches
 
     def print(self):
         print("left:", self.left, "\tright:", self.right)
-        if hasattr(self, "tform"):
-            print(self.tform)
         if hasattr(self, "matches"):
             print(f"# Matches {len(self.matches)}")
-        if hasattr(self, "inliers"):
-            print(f"# Inliers {len(self.inliers)}")
+        if hasattr(self, "inliers_matches"):
+            print(f"# Inliers {len(self.inliers_matches)}")
+        if hasattr(self, "coverage_all_points"):
+            print(f"Coverage {100 * self.coverage_all_points:.0f}%")
+        if hasattr(self, "err_matches"):
+            print(f"Err Matches {self.err_matches:.4f}%")
 
     def print_short(self):
-        print(f"{self.left}-{self.right}, Count={np.sum(self.inliers)}, Err={self.err:.4f}")
+        print(
+            f"{self.left}-{self.right}, Count={np.sum(self.inliers)}, Err Matches={self.err_matches:.4f}, Cov={100 * self.coverage_all_points:.1f}")

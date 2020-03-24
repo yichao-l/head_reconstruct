@@ -1,11 +1,6 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
-import os
 import struct
 from vpython import *
 import pickle
-import cv2
 from scipy.ndimage.morphology import binary_fill_holes
 from SIFT import *
 from tqdm.autonotebook import tqdm
@@ -387,84 +382,6 @@ class SingleHead():
             self.rgb = self.rgb[filter]
             end_cnt = np.sum(filter)
         self.save_filtered_image("remove_dangle")
-
-# to be deleted
-    # def remove_color(self):
-    #     '''
-    #     Updates the filters by removing colors on the edge
-    #     This is not the best function
-    #     remove_background_background_color do
-    #     :return:
-    #     '''
-    #     verbose = False
-    #     min_grad=0.15
-    #     fudge=0.6
-    #     size=5
-    #     lb=size//2
-    #     ub=size//2+1
-    #     filter =np.ones(self.xy_mesh.shape) >0
-    #     start_cnt=np.sum(filter)
-    #     end_cnt=0
-    #     # print(start_cnt)
-    #     self.background_colors=[]
-    #     while end_cnt<start_cnt:
-    #         bool_img = self.get_bool_image()
-    #         filter = np.ones(self.xy_mesh.shape) > 0
-    #         start_cnt = np.sum(filter)
-    #         for i, index in enumerate (self.xy_mesh):
-    #             y=index//640
-    #             x=index%640
-    #             if x>0 and y >0 and x < 640-lb and y < 480-lb:
-
-    #                 small_bool = bool_img[y-1:y + 2, x-1:x + 2]
-    #                 if np.sum(small_bool)<=6:
-    #                     small_rgb = self.twoD_image[y-lb:y + ub, x-lb:x + ub]
-    #                     ctr_color=small_rgb[lb,lb]
-    #                     top_cnt= np.sum(small_bool[0,:])
-    #                     btm_cnt= np.sum(small_bool[2,:])
-    #                     left_cnt= np.sum(small_bool[:,0])
-    #                     right_cnt= np.sum(small_bool[:,2])
-
-    #                     left_color=np.mean(small_rgb[:,0],axis=0)
-    #                     right_color=np.mean(small_rgb[:,size-1],axis=0)
-    #                     top_color=np.mean(small_rgb[0,:],axis=0)
-    #                     btm_color=np.mean(small_rgb[size-1,:],axis=0)
-    #                     Background = True
-    #                     if left_cnt == 0 and right_cnt >= 1:  # that means left is background
-    #                         bg_clr=left_color
-    #                         fg_clr=right_color
-    #                     elif right_cnt == 0 and left_cnt >= 1:  # that means right is background
-    #                         bg_clr=right_color
-    #                         fg_clr=left_color
-    #                     elif top_cnt == 0 and btm_cnt >= 1:  # that means top is background
-    #                         bg_clr=top_color
-    #                         fg_clr=btm_color
-    #                     elif btm_cnt == 0 and top_cnt >= 1:  # that means top is background
-    #                         bg_clr=btm_color
-    #                         fg_clr=top_color
-    #                     else:
-    #                         Background=False
-    #                     if Background:
-    #                         if verbose:
-    #                             print('t:', top_cnt, 'b:', btm_cnt, 'l:', left_cnt, 'r:', right_cnt)
-    #                         if left_cnt==0 and right_cnt>1: # that means left is background
-    #                             if verbose:
-    #                                 print(np.linalg.norm(fg_clr - ctr_color))
-    #                                 print(np.linalg.norm(bg_clr - ctr_color))
-    #                                 print(np.linalg.norm(fg_clr - bg_clr))
-    #                             if np.linalg.norm(bg_clr - ctr_color) * fudge < np.linalg.norm(
-    #                                         fg_clr - ctr_color) or (np.linalg.norm(
-    #                                         fg_clr - bg_clr) < min_grad):  # if center color is closest to background
-    #                                     if verbose:
-    #                                         print('Remove', top_color)
-    #                                     filter[i] = False
-    #                                     self.background_colors.append(self.rgb[i])
-    #         end_cnt = np.sum(filter)
-    #         # print(end_cnt)
-    #         self.xy_mesh=self.xy_mesh[filter]
-    #         self.xyz = self.xyz[filter]
-    #         self.rgb = self.rgb[filter]
-    #     self.background_colors=np.mean(self.background_colors, axis=0)
 
     def remove_background_color(self):
         '''

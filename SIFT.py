@@ -12,7 +12,6 @@ def get_matches(head1, head2):
     matches = bf.knnMatch(head1.des, head2.des, k=2)
     # unfoled the list
     # matches = [val for sublist in matches for val in sublist]
-
     # using one nearest neighbor
     matches = [sublist[0] for sublist in matches]
     return matches
@@ -67,24 +66,29 @@ def estimate_transform(head1, head2, matches):
     kp_xyz1, kp_xyz2, matches = get_xyz_from_matches(head1, head2, matches)
 
     # RANSAC parameters
-    # max_dist: The threshold of the distances between match points
-    max_dist = 0.007
-    best_count = 0
-    best_err = 1000
-    best_inliers = []
-    No_Iterations = 500
+
+    max_dist_matches = 0.007
+    max_dist_all_points = 0.02
+
+    no_iterations = 5000
+    no_iterations_all_points = 200
     min_num_inliers = 6
     sample_thresh = 0.6
 
-    max_distance_between_points = 0.015
+    best_count_all_points = 0
+    best_count_matches = 0
+    best_coverage_all_points = 0
+    best_err_matches = 1000
+    best_inliers_all_points = []
+    best_inliers_matches = []
 
     l = head2.xyz.shape[0]
     filter2 = np.random.random((l)) < 0.1
     xyz1 = head1.xyz
     xyz2 = head2.xyz[filter2]
     temp_best_tform = None
-    with tqdm(total=No_Iterations) as progressbar:
-        for j in range(No_Iterations):
+    with tqdm(total=no_iterations) as progressbar:
+        for j in range(no_iterations):
             kp_sample = np.random.rand(kp_xyz2.shape[0]) > sample_thresh
             progressbar.update(1)
             temp_best_count = 0
@@ -95,7 +99,7 @@ def estimate_transform(head1, head2, matches):
                         R, c, t = tform['rotation'], tform['scale'], tform['translation']
                         dist = np.linalg.norm(kp_xyz2.dot(c * R) + t - kp_xyz1, axis=1)
                         last_kp_sample = kp_sample.copy()
-                        inliers = dist < max_dist
+                        inliers = dist < max_dist_matches
                         if np.sum(inliers) > min_num_inliers:
                             err = np.sqrt(np.var(dist) / (np.sum(inliers) - min_num_inliers))
                         else:
@@ -116,24 +120,29 @@ def estimate_transform(head1, head2, matches):
                     break
 
             if not temp_best_tform is None:
-                R, c, t = temp_best_tform['rotation'], temp_best_tform['scale'], temp_best_tform['translation']
-                xyz2_trans = xyz2.dot(c * R) + t
-                distances, indices = nearest_neighbor(xyz2_trans, xyz1)
-                max_dist = 0.02
-                count = np.sum(distances < max_dist)
-                temp_best_count = count
-                OK = R[0, 0] * R[2, 2] - R[0, 2] * R[2, 0] > 0
-                if temp_best_count > best_count and OK:
-                    best_count = temp_best_count
-                    best_err = temp_best_err
-                    best_inliers = temp_best_inliers.copy()
-                    best_tform = temp_best_tform.copy()
+                if j < no_iterations_all_points:
+                    R, c, t = temp_best_tform['rotation'], temp_best_tform['scale'], temp_best_tform['translation']
+                    xyz2_trans = xyz2.dot(c * R) + t
+                    distances, indices = nearest_neighbor(xyz2_trans, xyz1)
+                    count_all_points = np.sum(distances < max_dist_all_points)
+                    if count_all_points > best_count_all_points:
+                        best_count_all_points = count_all_points
+                        best_coverage_all_points = best_count_all_points / xyz2.shape[0]
+                        best_inliers_all_points = temp_best_inliers.copy()
+                        progressbar.set_description(
+                            f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} match:{100 * best_coverage_all_points :.2f}%")
+                if temp_best_count > best_count_matches or (
+                        temp_best_count == best_count_matches and temp_best_err < best_err_matches):
+                    best_count_matches = temp_best_count
+                    best_err_matches = temp_best_err
+                    best_inliers_matches = temp_best_inliers.copy()
                     progressbar.set_description(
-                        f"Head {head1.frame_id} & {head2.frame_id} :best count {best_count:.0f} Match {100 * count / xyz2.shape[0]:.2f}%")
+                        f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} match:{100 * best_coverage_all_points :.2f}%")
 
-    # if best_count < 5:
-    #     raise ValueError('Could not match')
-    return best_tform, best_inliers, best_err, matches
+    return best_inliers_all_points, best_coverage_all_points, best_inliers_matches, best_err_matches, matches
+
+
+
 
 
 def draw_matches(head1, head2, matches, inliers):

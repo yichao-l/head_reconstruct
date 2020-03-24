@@ -10,25 +10,33 @@ from multi_head import MultiHead
 Sequence = 1
 
 for frame_idx in range(1, 16):  # loop through all frames
+    # read the data from the file, define by Sequence and frame_idx and store the data in a SingeHead object
     head = SingleHead.read_from_file(Sequence,
-                                     frame_idx)  # read the data from the file, define by Sequence and frame_idx and store the data in a SingeHead object
-    head.apply_all_filters()  # apply all filters
-    head.save()  # save the processed head
+                                     frame_idx)
+    # apply all filters
+    head.apply_all_filters()
+    # save the processed head
+    head.save()
 
 list_of_all_heads = [SingleHead.load_from_pickle(Sequence, i) for i in
                      range(1, 16)]  # create a list of all the heads, from the save SingleHead objects
 
-mhead = MultiHead.create_from_heads(list_of_all_heads)  # create a MulitHead object from the list
-
-mhead.calc_all_sift_keypoints()  # calculate teh SIFT points for each SingleHead in the MultiHead object
-
-mhead.calc_all_sift_transforms()  # calculate the SIFT transform for each pair of adjacent heads, each pair of adjacnt SingleHeads shares a Link Object
+# create a MultiHead object from the list:
+mhead = MultiHead.create_from_heads(list_of_all_heads)
+# calculate teh SIFT points for each SingleHead in the MultiHead object:
+mhead.calc_all_sift_keypoints()
+# calculate the SIFT transform for each pair of adjacent heads, each pair of adjacnt SingleHeads shares a Link Object:
+mhead.calc_all_sift_transforms()
 
 for link_idx in range(14):  # iterate through the links between heads
-    mhead.all_transforms_from_link(mhead.links[link_idx])  # calculate all transformations for each link
+    # calculate and perform all transformations for each link:
+    mhead.all_transforms_from_link(mhead.links[link_idx])
 
-mhead.create_png_series()  # create a series of png images for the spheres
+# create a series of png images for the spheres
+mhead.create_png_series()
 
-mean_eye_dist = mhead.left_eye_deviation()  # calculate the mean eye distance
+# calculate the mean eye distance:
+mean_eye_dist = mhead.left_eye_deviation()
 
-mhead.save()  # sve the MulitHead object for later re-use
+# Save the MultiHead object for later re-use:
+mhead.save()

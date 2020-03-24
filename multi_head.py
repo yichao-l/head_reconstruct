@@ -97,7 +97,6 @@ class MultiHead():
                 ind_xy = np.argwhere(self.heads[frame].xy_mesh == ind)
                 eye_coord.append(self.heads[frame].xyz[ind_xy][0][0])
                 print("coordinate of the left eye: {} in frame {}".format(self.heads[frame].xyz[ind_xy][0][0], frame))
-
         eye_coord = np.array(eye_coord)
         mean_coord = np.mean(eye_coord, axis=0)
         print(mean_coord)
@@ -193,34 +192,41 @@ class MultiHead():
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
         if not hasattr(link, "matches"):
             matches = get_matches(head1, head2)
-            tform, inliers, err, matches = estimate_transform(head1, head2, matches)
-            link.add_ransac_results(tform, inliers, err, matches)
+            inliers_all_points, coverage_all_points, inliers_matches, err_matches, matches = estimate_transform(head1,
+                                                                                                                head2,
+                                                                                                                matches)
+            link.add_ransac_results(inliers_all_points, coverage_all_points, inliers_matches, err_matches, matches)
         return link
 
-    def sift_transform_from_link(self, link, right_to_left):
+    def sift_transform_from_link(self, link, right_to_left, all_points=True):
 
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
         # if not hasattr(link, "matches"):
         link = self.ransac_from_link(link)
         xyz1, xyz2, matches = get_xyz_from_matches(head1, head2, link.matches)
-        head1.keypoints = xyz1[link.inliers]
+        if all_points:
+            inliers = link.inliers_all_points
+        else:
+            inliers = link.inliers_matches
+        head1.keypoints = xyz1[inliers]
+        head2.keypoints = xyz2[inliers]
+
         head1.keypoints_clr = [1, 0, 0]
-        head2.keypoints = xyz2[link.inliers]
         head2.keypoints_clr = [0, 1, 0]
 
         if right_to_left:
-            d, Z, tform12 = procrustes(xyz2[link.inliers], xyz1[link.inliers])
+            d, Z, tform12 = procrustes(xyz2[inliers], xyz1[inliers])
             t = tform12['rotation']
             print(t)
             head1.transform(tform12)
         else:
-            d, Z, tform21 = procrustes(xyz1[link.inliers], xyz2[link.inliers])
+            d, Z, tform21 = procrustes(xyz1[inliers], xyz2[inliers])
             t = tform21['rotation']
             print(t)
 
             head2.transform(tform21)
-        draw_matches(head1, head2, link.matches, link.inliers)
+        draw_matches(head1, head2, link.matches, inliers)
         return link
 
     def icp_transform_from_link(self, link, right_to_left):
@@ -239,19 +245,28 @@ class MultiHead():
                                max_iterations=40)
         return link
 
-    def refine_transform_from_link(self, link, right_to_left, full_angle=False, full_range=False, filter=None):
+    def refine_transform_from_link(self, link, right_to_left, angle_over_range=False, cartesian_over_range=False,
+                                   filter=None):
         '''
         calls the refine_6D fucntions, passing on all parameters, selecting whether head A moves to head B or the other way round
         '''
         if right_to_left:
-            filter, score = refine_6D(self, A=link.left, B=link.right, angle_over_range=full_angle,
-                                      pos_over_range=full_range, filter=filter)
+            filter, score = refine_6D(self, A=link.left, B=link.right, angle_over_range=angle_over_range,
+                                      pos_over_range=cartesian_over_range, filter=filter)
         else:
-            filter, score = refine_6D(self, A=link.right, B=link.left, angle_over_range=full_angle,
-                                      pos_over_range=full_range, filter=filter)
+            filter, score = refine_6D(self, A=link.right, B=link.left, angle_over_range=angle_over_range,
+                                      pos_over_range=cartesian_over_range, filter=filter)
         return filter, score
 
     def all_transforms_from_link(self, link):
+        '''
+        :param link: The link for which all transforms are to be performed
+        :return: the link itslef, unmodified.
+
+        Identifies which head is to be transformed ( the one that is not visible)
+        Transforms the head that is not visible and makes it visble (headx.visible = True)
+
+        '''
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
 
@@ -261,12 +276,19 @@ class MultiHead():
         else:
             self.last_head_id = self.head_id_from_frame_id(link.left)
 
+        # perform the transformation based on the calculated SIFT matches:
         self.sift_transform_from_link(link, right_to_left)
+        # perform the ICP transformation
         self.icp_transform_from_link(link, right_to_left)
+
+        # perform the refine operation
         filter = None
-        filter, score = self.refine_transform_from_link(link, right_to_left, full_angle=True, full_range=True,
+        # first peform a
+        filter, score = self.refine_transform_from_link(link, right_to_left, angle_over_range=True,
+                                                        cartesian_over_range=True,
                                                         filter=filter)
-        filter, score = self.refine_transform_from_link(link, right_to_left, full_angle=True, full_range=True,
+        filter, score = self.refine_transform_from_link(link, right_to_left, angle_over_range=True,
+                                                        cartesian_over_range=True,
                                                         filter=filter)
         last_score = 0
         before_last_score = 0
@@ -279,11 +301,10 @@ class MultiHead():
         head2.visible = True
         return link
 
-
     def icp_transform(self, frame1, frame2, r=0.05, max_iterations=1):
         '''
         param:
-        r (float): sampleing rate for head1 
+        r (float): sampling rate for head1
         file_name (string): file name of combined spheres
         '''
         # perform one iteration of icp algorithm
@@ -386,12 +407,8 @@ class MultiHead():
         def n2v(p):
             return vec(p[0], p[1], p[2])
 
-        def v2n(v):
-            return np.asarray([v.x, v.y, v.z])
-
         def prj(p):
             return vec(p[0], -p[1], -p[2])
-
         self.objects = []
         O = np.asarray([0, 0, 0.05])
 
