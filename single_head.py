@@ -8,8 +8,9 @@ import pickle
 import cv2
 from scipy.ndimage.morphology import binary_fill_holes
 from SIFT import *
-from tqdm.notebook import tqdm
+from tqdm.autonotebook import tqdm
 from sklearn.neighbors import NearestNeighbors
+
 
 
 def float_2_rgb(num):
@@ -69,34 +70,23 @@ class SingleHead():
                 raw_data = file_object.read()
             return pickle.loads(raw_data)
         except:
-            raise FileExistsError (f'{data_file} could not be found, create {data_file} by using .save() first ')
+            raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
 
-    def full_filter(self,  depth=1.5):
-        # perform thresholding in depth axis, remove the nan pixels
-        # and the flying pixels.
-        # Then center the pixels, create vpython spheres
-        # and save as pickel obj for future use.
+    def apply_all_filters(self, depth=1.5):
+
+        '''
+        perform thresholding in depth axis, remove the nan pixels
+        and the flying pixels.
+        Then center the pixels, create vpython spheres
+        '''
         self.reset_filters()
         self.filter_nan()
         self.filter_depth(depth)
-        print("depth filter done.")
-
-        # experiemntal filter 1: dangling pixel filter.
-        # self.remove_dangling()
-        # print("dangling removal done")
-
         self.remove_background_color()
-        # print("color filter done.")
-        # experimental filter 2: edge based filter.  
-        # self.edge_based_filter()
-
-        # experiemntal filter 3: parzen window filter
-        self.parzen_filter()
+        # self.parzen_filter()
         self.center()
-        self.create_vpython_spheres()
-        self.save()
 
-    def color_eye(self,row,column):
+    def color_eye(self, row, column):
         self.left_eye_ind = row * 640 + column
         image = self.twoD_image.copy()
         image = image.reshape(-1,3)
@@ -371,7 +361,6 @@ class SingleHead():
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
             end_cnt = np.sum(filter)
-        print(remove_count)
         self.save_filtered_image("parzen_window")
 
     def remove_dangling(self):
@@ -522,7 +511,7 @@ class SingleHead():
                             print(small_bool)
                             print(x, y, ctr_color, self.bg_color)
                             print(np.linalg.norm(ctr_color - self.bg_color))
-                        
+
                         # if the pixel is too similar to the background color, then removed
                         if np.linalg.norm(ctr_color-self.bg_color) < min_grad:
                             if verbose:
@@ -570,6 +559,8 @@ class SingleHead():
         #         {'pos': vec(self.keypoints[i, 0], -self.keypoints[i, 1], -self.keypoints[i, 2]), 'radius': 0.005,
         #          'color': (vec(self.keypoints_clr[0], self.keypoints_clr[1], self.keypoints_clr[2]))} for i in
         #         range(self.keypoints.shape[0])]
+        data_file = f"pickled_head/head_spheres.p"
+        pickle.dump(self.spheres, open(data_file, 'wb'))
 
     def save(self, file_name=None):
         '''
@@ -581,8 +572,6 @@ class SingleHead():
         if file_name is None:
             file_name = f"pickled_head/head{self.sequence_id}_{self.frame_id}.p"
         pickle.dump(self, open(file_name, 'wb'))
-        data_file = f"pickled_head/head_spheres.p"
-        pickle.dump(self.spheres, open(data_file, 'wb'))
 
     def remove_edge_points(self, kps, des, diameter):
         '''

@@ -1,8 +1,8 @@
 import cv2
 import matplotlib.pyplot as plt
-import numpy as np
-from tqdm import tqdm_notebook as tqdm
-from Procrustes2 import *
+from tqdm.autonotebook import tqdm
+from procrustes import *
+from icp import nearest_neighbor
 import os
 
 
@@ -68,36 +68,46 @@ def estimate_transform(head1, head2, matches):
 
     # RANSAC parameters
     # max_dist: The threshold of the distances between match points
-    max_dist = 0.015
+    max_dist = 0.007
     best_count = 0
     best_err = 1000
     best_inliers = []
-    No_Iterations = 10000
+    No_Iterations = 500
     min_num_inliers = 6
     sample_thresh = 0.6
 
+    max_distance_between_points = 0.015
+
+    l = head2.xyz.shape[0]
+    filter2 = np.random.random((l)) < 0.1
+    xyz1 = head1.xyz
+    xyz2 = head2.xyz[filter2]
+    temp_best_tform = None
     with tqdm(total=No_Iterations) as progressbar:
         for j in range(No_Iterations):
             kp_sample = np.random.rand(kp_xyz2.shape[0]) > sample_thresh
             progressbar.update(1)
+            temp_best_count = 0
             for i in range(20):
                 if np.sum(kp_sample) >= min_num_inliers:
                     try:
-                        d, Z, tform = procrustes(kp_xyz1[kp_sample], kp_xyz2[kp_sample], scaling=False, reflection='best')
+                        d, Z, tform = procrustes(kp_xyz1[kp_sample], kp_xyz2[kp_sample])
                         R, c, t = tform['rotation'], tform['scale'], tform['translation']
                         dist = np.linalg.norm(kp_xyz2.dot(c * R) + t - kp_xyz1, axis=1)
                         last_kp_sample = kp_sample.copy()
                         inliers = dist < max_dist
-                        err = np.sqrt(np.var(dist) / (np.sum(inliers) - min_num_inliers))
-                        if (np.sum(inliers) >= best_count):
+                        if np.sum(inliers) > min_num_inliers:
+                            err = np.sqrt(np.var(dist) / (np.sum(inliers) - min_num_inliers))
+                        else:
+                            err = float("NaN")
+
+                        if (np.sum(inliers) >= temp_best_count):
                             # if (err < best_err) and np.sum(inliers)>min_num_inliers:
-                            best_err = err
-                            progressbar.set_description(
-                                f"Head {head1.frame_id} & {head2.frame_id} :best count {best_count:.0f} Error {err:.4f}")
-                            best_count = np.sum(inliers)
-                            best_err = err
-                            best_inliers = inliers.copy()
-                            best_tform = tform
+                            temp_best_count = np.sum(inliers)
+                            temp_best_err = err
+                            temp_best_inliers = kp_sample.copy()  # inliers.copy()
+                            temp_best_tform = tform
+
                         if np.all(last_kp_sample == inliers):
                             break
                     except:
@@ -105,8 +115,24 @@ def estimate_transform(head1, head2, matches):
                 else:
                     break
 
-    if best_count < 5:
-        raise ValueError('Could not match')
+            if not temp_best_tform is None:
+                R, c, t = temp_best_tform['rotation'], temp_best_tform['scale'], temp_best_tform['translation']
+                xyz2_trans = xyz2.dot(c * R) + t
+                distances, indices = nearest_neighbor(xyz2_trans, xyz1)
+                max_dist = 0.02
+                count = np.sum(distances < max_dist)
+                temp_best_count = count
+                OK = R[0, 0] * R[2, 2] - R[0, 2] * R[2, 0] > 0
+                if temp_best_count > best_count and OK:
+                    best_count = temp_best_count
+                    best_err = temp_best_err
+                    best_inliers = temp_best_inliers.copy()
+                    best_tform = temp_best_tform.copy()
+                    progressbar.set_description(
+                        f"Head {head1.frame_id} & {head2.frame_id} :best count {best_count:.0f} Match {100 * count / xyz2.shape[0]:.2f}%")
+
+    # if best_count < 5:
+    #     raise ValueError('Could not match')
     return best_tform, best_inliers, best_err, matches
 
 

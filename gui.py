@@ -2,22 +2,16 @@
 GUI for rendering 3D head objects
 '''
 
-import single_head
-import numpy as np
-import matplotlib.pyplot as plt
-import os
-import struct
+import sys
+
 from vpython import *
+from vpython.no_notebook import stop_server
 import pickle
+import time
+import numpy as np
 
 
-scene.width = scene.height = 800
-scene.background = color.white
-scene.range = 0.3
-
-run = False
-
-def Runbutton(b):
+def Savebutton():
     global name
     if name is None:
         file_name = f"mesh.png"
@@ -26,7 +20,7 @@ def Runbutton(b):
     scene.capture(file_name)
 
 
-def Readbutton(b):
+def Readbutton():
     global name
     if 'l' in globals():
         global l
@@ -52,7 +46,7 @@ def Readbutton(b):
     print(len(spheres))
 
 
-def ReadMeshbutton(b):
+def ReadMeshbutton():
     global name
     if 'c' in globals():
         global c
@@ -85,7 +79,13 @@ def ReadMeshbutton(b):
             l.append(p)
 
 
-button(text='Save', bind=Runbutton)
+args = sys.argv
+
+scene.width = scene.height = 800
+scene.background = color.white
+scene.range = 0.35
+
+button(text='Save', bind=Savebutton)
 button(text='Read', bind=Readbutton)
 button(text='Mesh', bind=ReadMeshbutton)
 
@@ -95,21 +95,40 @@ Middle button or Alt-drag to drag up or down to zoom in or out.
 Touch screen: pinch/extend to zoom, swipe or two-finger rotate.""")
 
 data_file = 'pickled_head/head_spheres.p'
-name=None
-try:
 
+name = None
+
+try:
     with open(data_file, 'rb') as file_object:
         raw_data = file_object.read()
-    (spheres,name)  = pickle.loads(raw_data)
-    print(len(spheres))
 except:
     raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
 
+(spheres, name) = pickle.loads(raw_data)
+print(len(spheres))
 c = points(pos=spheres, size_units='world')
-
+rate(20)
 l = []
 
-while True:
-    rate(20)
-    if run:  # Currently there isn't a way to rotate a points object, so rotate scene.forward:
-        scene.forward = scene.forward.rotate(angle=-0.005, axis=vec(0, 1, 0))
+print(args)
+
+if "alpha" in args:
+    alpha = int(args[args.index("alpha") + 1])
+
+else:
+    alpha = 0
+
+scene.light = [
+    distant_light(direction=vector(np.sin(-(45 + alpha) * np.pi / 180), 0.3, np.cos(-(45 + alpha) * np.pi / 180)),
+                  color=color.gray(0.3)),
+    distant_light(direction=vector(np.sin(-(+45 + alpha) * np.pi / 180), 0.3, np.cos(-(-45 + alpha) * np.pi / 180)),
+                  color=color.white)]
+
+print(alpha)
+scene.forward = vec(np.sin(alpha * np.pi / 180), 0, -np.cos(alpha * np.pi / 180))
+
+if "save_only" in args:
+    time.sleep(len(spheres) // 10000)
+    Savebutton()
+    time.sleep(len(spheres) // 30000)
+    stop_server()

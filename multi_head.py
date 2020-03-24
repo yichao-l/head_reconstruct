@@ -2,48 +2,10 @@ import pickle
 import icp
 from vpython import *
 from SIFT import *
-from tqdm import tqdm_notebook as tqdm
+from tqdm.autonotebook import tqdm
 from refine import *
-
-
-class Link():
-    def __init__(self, left, right):
-        '''
-        left and right are the frame id of the heads
-        '''
-        self.left = left
-        self.right = right
-
-    def add_matches(self, matches):
-        self.matches = matches
-
-    def reset(self):
-        if hasattr(self, "tform"):
-            del self.tform
-        if hasattr(self, "matches"):
-            del self.matches
-        if hasattr(self, "inliers"):
-            del self.inliers
-        if hasattr(self, "err"):
-            del self.err
-
-    def add_ransac_results(self, tform, inliers, err, matches):
-        self.tform = tform
-        self.inliers = inliers
-        self.err = err
-        self.matches = matches
-
-    def print(self):
-        print("left:", self.left, "\tright:", self.right)
-        if hasattr(self, "tform"):
-            print(self.tform)
-        if hasattr(self, "matches"):
-            print(f"# Matches {len(self.matches)}")
-        if hasattr(self, "inliers"):
-            print(f"# Inliers {len(self.inliers)}")
-
-    def print_short(self):
-        print(f"{self.left}-{self.right}, Count={np.sum(self.inliers)}, Err={self.err:.4f}")
+from link import Link
+import numpy as np
 
 
 class MultiHead():
@@ -68,6 +30,7 @@ class MultiHead():
         :param data_file:  file to load from, default name is the default file used for saving
         :return: object of  threeD_head class
         '''
+        print(f"Loading Sequence {sequence_id}...", end="")
         data_file = f"pickled_head/mhead{sequence_id}.p"
         try:
 
@@ -87,34 +50,32 @@ class MultiHead():
                 link.matches = [cv2.DMatch(_distance=match[0], _imgIdx=match[1], _queryIdx=match[2], _trainIdx=match[3])
                                 for match in link.matches]
 
+        print("done")
         return this
 
     @classmethod
-    def load_from_pickle(cls, sequence_id):
-
+    def create_from_heads(cls, list_of_heads, first=0, last=14):
         '''
-        :param data_file:  file to load from, default name is the default file used for saving
-        :return: object of  threeD_head class
+
+        :param list_of_heads:
+        :param first:
+        :param last:
+        :return:
         '''
-        data_file = f"pickled_head/mhead{sequence_id}.p"
-        try:
-
-            with open(data_file, 'rb') as file_object:
-                raw_data = file_object.read()
-            this = pickle.loads(raw_data)
-        except:
-            raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
-
-        for head in this.heads:
-            if hasattr(head, 'kp'):
-                head.kp = [cv2.KeyPoint(x=point[0][0], y=point[0][1], _size=point[1], _angle=point[2],
-                                        _response=point[3], _octave=point[4], _class_id=point[5]) for point in head.kp]
-
-        for link in this.links:
-            if hasattr(link, 'matches'):
-                link.matches = [cv2.DMatch(_distance=match[0], _imgIdx=match[1], _queryIdx=match[2], _trainIdx=match[3])
-                                for match in link.matches]
-
+        print("creating mhead object from a list of SingleHead objects")
+        list_of_heads[first].reset_positions()
+        list_of_heads[first].reset_colors()
+        list_of_heads[first + 1].reset_positions()
+        list_of_heads[first + 1].reset_colors()
+        this = MultiHead.joined_heads(list_of_heads[first], list_of_heads[first + 1])
+        this.links.append(Link(left=list_of_heads[first + 1].frame_id, right=list_of_heads[first].frame_id))
+        for i in range(first + 2, last + 1):
+            this.links.append(Link(left=list_of_heads[i].frame_id, right=list_of_heads[i - 1].frame_id))
+            list_of_heads[i].reset_positions()
+            list_of_heads[i].reset_colors()
+            this.append(list_of_heads[i])
+            if i == last:
+                this.links.append(Link(left=list_of_heads[first].frame_id, right=list_of_heads[i].frame_id))
         return this
 
     def left_eye_deviation(self):
@@ -143,16 +104,25 @@ class MultiHead():
         sub_mean = eye_coord - mean_coord
         print(sub_mean)
         distances = np.linalg.norm(sub_mean, axis=1)
-
         print("mean coordinate: {}. Distance to each points: {}.".format(mean_coord, distances))
-        return mean_coord, distances
+        print(f"mean distance: {np.mean(distances)}")
+        return np.mean(distances)
 
-    def calc_keypoints(self, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=10, SIFT_sigma=0.50):
+    def calc_all_sift_keypoints(self, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=10, SIFT_sigma=0.50):
         '''
         Calculate the keypoints for all the SingleHead object in self.heads.
         '''
         for head in self.heads:
             head.create_keypoints(SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
+
+    def calc_all_sift_transforms(self):
+        '''
+        calculates SIFT transforms for each of the heads
+        :return:
+        '''
+        for link in self.links:
+            link.reset()
+            self.ransac_from_link(link)
 
     def append(self, head):
         head.reset_positions()
@@ -169,16 +139,21 @@ class MultiHead():
                 return i
         raise ValueError
 
-    def join_heads(self, frame1, frame2):
-        head1 = self.heads[self.head_id_from_frame_id(frame1)]
-        head2 = self.heads[self.head_id_from_frame_id(frame2)]
-        matches = get_matches(head1, head2)
-        tform, inliers, err, matches = estimate_transform(head1, head2, matches)
-        head2.transform(tform)
-        head1.visible = True
-        head2.visible = True
-        draw_matches(head1, head2, matches, inliers)
-        return True
+    # def join_heads(self, frame1, frame2):
+    #     '''
+    #     :param frame1:
+    #     :param frame2:
+    #     :return:
+    #     '''
+    #     head1 = self.heads[self.head_id_from_frame_id(frame1)]
+    #     head2 = self.heads[self.head_id_from_frame_id(frame2)]
+    #     matches = get_matches(head1, head2)
+    #     tform, inliers, err, matches = estimate_transform(head1, head2, matches)
+    #     head2.transform(tform)
+    #     head1.visible = True
+    #     head2.visible = True
+    #     draw_matches(head1, head2, matches, inliers)
+    #     return True
 
     def get_next_unpositioned_link(self):
         best_error = 1
@@ -205,6 +180,10 @@ class MultiHead():
             head.reset_colors()
             head.visible = False
 
+    def reset_all_head_colors(self):
+        for head in self.heads:
+            head.reset_colors()
+
     def ransac_from_link(self, link):
         '''
         Computes the matching keypoints and estimate the Procrustes transformation,
@@ -218,94 +197,88 @@ class MultiHead():
             link.add_ransac_results(tform, inliers, err, matches)
         return link
 
-    def transform_from_link(self, link):
+    def sift_transform_from_link(self, link, right_to_left):
+
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
         # if not hasattr(link, "matches"):
         link = self.ransac_from_link(link)
-
         xyz1, xyz2, matches = get_xyz_from_matches(head1, head2, link.matches)
-
         head1.keypoints = xyz1[link.inliers]
         head1.keypoints_clr = [1, 0, 0]
         head2.keypoints = xyz2[link.inliers]
         head2.keypoints_clr = [0, 1, 0]
 
-        if head2.visible and not head1.visible:
-            d, Z, tform12 = procrustes(xyz2[link.inliers], xyz1[link.inliers], scaling=False, reflection='best')
+        if right_to_left:
+            d, Z, tform12 = procrustes(xyz2[link.inliers], xyz1[link.inliers])
+            t = tform12['rotation']
+            print(t)
             head1.transform(tform12)
-            # self.icp_transform(link.left, link.right,
-                               max_iterations=40)
-            # refine3d(self, link.left, link.right)
-
         else:
-            d, Z, tform21 = procrustes(xyz1[link.inliers], xyz2[link.inliers], scaling=False, reflection='best')
-            head2.transform(tform21)
-            # self.icp_transform(link.right, link.left,
-                               max_iterations=40)
-            # refine3d(self, link.right, link.left)
+            d, Z, tform21 = procrustes(xyz1[link.inliers], xyz2[link.inliers])
+            t = tform21['rotation']
+            print(t)
 
-        head1.visible = True
-        head2.visible = True
+            head2.transform(tform21)
         draw_matches(head1, head2, link.matches, link.inliers)
         return link
 
-    def get_mean_distance(self, index1, index2, r=0.1):
+    def icp_transform_from_link(self, link, right_to_left):
         '''
-        r (float): the percentage of pixels in head1 used for calculating distances.
+
+        :param link: the Link object between the two heads that are to be ICP-ed
+        :param right_to_left: in which direction is the ICP happening? Left to right or rightto left
+        :return: link, while correct head has been transformed
         '''
-        # perform one iteration of icp algorithm
-        head1 = self.heads[index1]
-        head2 = self.heads[index2]
 
-        # sample both array to the same size
-        n_sample = int(head1.xyz.shape[0]*r)
-        n_1 = head1.xyz.shape[0]
-        n_2 = head2.xyz.shape[0]
-        sample_1 = np.random.choice(np.arange(n_1), n_sample)
-        sample_2 = np.random.choice(np.arange(n_2),n_sample)  
-        A = head1.xyz[sample_1]
-        B = head2.xyz[sample_2]
-        # get mean distance
-        # # get number of dimensions
-        # m = sample_1.shape[1]
+        if right_to_left:
+            self.icp_transform(link.left, link.right,
+                               max_iterations=40)
+        else:
+            self.icp_transform(link.right, link.left,
+                               max_iterations=40)
+        return link
 
-        # # make points homogeneous, copy them to maintain the originals
-        # src = np.ones((m+1,sample_1.shape[0]))
-        # dst = np.ones((m+1,sample_2.shape[0]))
-        # src[:m,:] = np.copy(sample_1.T)
-        # dst[:m,:] = np.copy(sample_2.T)
-        # distances, indices = nearest_neighbor(src[:m,:].T, dst[:m,:].T)
-        distances, _ = icp.nearest_neighbor(A,B)
-        # reset
-        head2.reset_positions()
-        head2.reset_colors()
-        return np.mean(distances)
-            
+    def refine_transform_from_link(self, link, right_to_left, full_angle=False, full_range=False, filter=None):
+        '''
+        calls the refine_6D fucntions, passing on all parameters, selecting whether head A moves to head B or the other way round
+        '''
+        if right_to_left:
+            filter, score = refine_6D(self, A=link.left, B=link.right, angle_over_range=full_angle,
+                                      pos_over_range=full_range, filter=filter)
+        else:
+            filter, score = refine_6D(self, A=link.right, B=link.left, angle_over_range=full_angle,
+                                      pos_over_range=full_range, filter=filter)
+        return filter, score
 
-    def join_heads_wraper (self, index1, index2):
-        distances = []
-        con_threshes = [0.02]  # [0.02,0.04,0.06,0.08]
-        edge_threshes = [14]  # [10,20,30]
-        sigmas = [0.5]  # [0.5,1,2,3,4,5,6]
-        params = np.array(np.meshgrid(con_threshes, edge_threshes, sigmas)).T.reshape(-1, 3)
-        num_param = params.shape[0]
-        distance = 0
-        i = 0
-        with tqdm(total=len(params)) as progressbar:
-            progressbar.set_description("Searching (head {} and {}), done, Error: {}".format(index1, index2, distance))
-            for [con_thresh, edge_thresh, sigma] in params:
-                try:  # catch bad parameters
-                    distance = self.join_heads(index1, index2, con_thresh, edge_thresh, sigma, searching=True)
-                    # print("Searching (head {} and {}), {}/{} done, Error: {}".format(index1,index2,i,num_param,distance))
-                    progressbar.update(1)
-                except:
-                    distance = 100000
-                distances.append(distance)
-        min_idx = np.argmin(distances)
-        print(min_idx, "min_error", distances[min_idx], "params:", params[min_idx])
-        self.join_heads(index1, index2, params[min_idx][0], params[min_idx][1], params[min_idx][2], searching=False)
-        return
+    def all_transforms_from_link(self, link):
+        head1 = self.heads[self.head_id_from_frame_id(link.right)]
+        head2 = self.heads[self.head_id_from_frame_id(link.left)]
+
+        right_to_left = head2.visible and not head1.visible
+        if right_to_left:
+            self.last_head_id = self.head_id_from_frame_id(link.right)
+        else:
+            self.last_head_id = self.head_id_from_frame_id(link.left)
+
+        self.sift_transform_from_link(link, right_to_left)
+        self.icp_transform_from_link(link, right_to_left)
+        filter = None
+        filter, score = self.refine_transform_from_link(link, right_to_left, full_angle=True, full_range=True,
+                                                        filter=filter)
+        filter, score = self.refine_transform_from_link(link, right_to_left, full_angle=True, full_range=True,
+                                                        filter=filter)
+        last_score = 0
+        before_last_score = 0
+        while score > last_score or score > before_last_score:
+            before_last_score = last_score
+            last_score = score
+            filter, score = self.refine_transform_from_link(link, right_to_left, filter=filter)
+        self.icp_transform_from_link(link, right_to_left)
+        head1.visible = True
+        head2.visible = True
+        return link
+
 
     def icp_transform(self, frame1, frame2, r=0.05, max_iterations=1):
         '''
@@ -329,9 +302,6 @@ class MultiHead():
         head2.transform_homo(T)
         return
 
-    def save_spheres(self, name=None):
-        pickle.dump((self.spheres, name), open("pickled_head/head_spheres.p", 'wb'))
-
     def create_spheres(self, sparcity=1.0, name=None):
         self.spheres = []
         for head in self.heads:
@@ -342,7 +312,7 @@ class MultiHead():
                 else:
                     head.create_vpython_spheres(force_sparce=False)
                 self.spheres += head.spheres
-        self.save_spheres(name)
+        pickle.dump((self.spheres, name), open("pickled_head/head_spheres.p", 'wb'))
 
     def save(self):
         for head in self.heads:
@@ -366,6 +336,51 @@ class MultiHead():
                                 for match in link.matches]
 
         print("Saving Completed")
+
+    def create_png_of_spheres(self, sparcity, name, alpha=0):
+        import subprocess
+        self.create_spheres(sparcity=sparcity, name=name)
+        subprocess.call(["python", "gui.py", "save_only", "alpha", f"{int(alpha)}"])
+
+    def show_spheres(self, sparcity, name=None, alpha=0):
+        import subprocess
+        self.create_spheres(sparcity=sparcity, name=name)
+        subprocess.run(["python", "gui.py", "alpha", f"{int(alpha)}"])
+
+    def create_png_series(self):
+
+        self.reset_all_head_colors()
+        for head in self.heads:
+            head.visible = False
+        sequence = self.heads[0].sequence_id
+        for link_idx in range(14):  # iterate through the links between heads
+            link = self.links[link_idx]
+            head1 = self.heads[self.head_id_from_frame_id(link.right)]
+            head2 = self.heads[self.head_id_from_frame_id(link.left)]
+            right_to_left = head2.visible and not head1.visible
+            if right_to_left:
+                self.last_head_id = self.head_id_from_frame_id(link.right)
+            else:
+                self.last_head_id = self.head_id_from_frame_id(link.left)
+
+            head1.visible = True
+            head2.visible = True
+
+            self.reset_all_head_colors()
+            self.heads[self.last_head_id].paint([.2, .2, 1])
+
+            if sequence in [2, 4]:
+                alpha = -10 - link_idx * 360 / 15
+            else:
+                alpha = 10 + link_idx * 360 / 15
+            self.create_png_of_spheres(sparcity=0.5, name=f"Seq_{sequence}_{link_idx}", alpha=alpha)
+        self.reset_all_head_colors()
+        link_idx = 14
+        if sequence in [2, 4]:
+            alpha = -10 - link_idx * 360 / 15
+        else:
+            alpha = 10 + link_idx * 360 / 15
+        self.create_png_of_spheres(sparcity=0.5, name=f"Seq_{sequence}_all", alpha=alpha)
 
     def create_mesh(self, name):
         def n2v(p):
