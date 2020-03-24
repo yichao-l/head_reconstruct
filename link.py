@@ -58,3 +58,6 @@ class Link():
     def print_short(self):
         print(
             f"{self.left}-{self.right}, Count={np.sum(self.inliers)}, Err Matches={self.err_matches:.4f}, Cov={100 * self.coverage_all_points:.1f}")
+
+
+

@@ -31,23 +31,19 @@ mhead.calc_all_sift_keypoints()
 # calculate the SIFT transform for each pair of adjacent heads, each pair of adjacnt SingleHeads shares a Link Object:
 mhead.calc_all_sift_transforms()
 
-# Method A
-for link_idx in range(14):  # iterate through the links between heads
-    # calculate and perform all transformations for each link:
-    mhead.all_transforms_from_link(mhead.links[link_idx])
+method = 'A'
 
-# # Method C
-only_first_n = 15
-mhead.reset_all_head_positions()
-link_index, _ = mhead.get_next_unpositioned_link(method="coverage")
-positioned_head_count = 0
-while (not link_index is None) and (positioned_head_count < only_first_n or only_first_n == -1):
-    mhead.links[link_index].print_short()
-    mhead.all_transforms_from_link(mhead.links[link_index], method="coverage", ICP=True, Refine_Range=False,
-                                   Refine_local=False)
-    link_index, _ = mhead.get_next_unpositioned_link(method="coverage")
-    positioned_head_count = max(positioned_head_count + 1, 2)
-mhead.left_eye_deviation()
+if method == 'A':
+    # Method A
+    mhead.Method_A(sift_transform_method="coverage", icp=True, refine_range=False, refine_local=False)
+elif method == 'B':
+    # Method B
+    mhead.Method_B(sift_transform_method="coverage", icp=True, refine_range=False, refine_local=False)
+elif method == 'C':
+    # Method C
+    mhead.Method_C(sift_transform_method="coverage", icp=True, refine_range=False, refine_local=False)
+
+
 
 # create a series of png images for the spheres
 mhead.create_png_series()

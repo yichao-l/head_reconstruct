@@ -7,12 +7,14 @@ from refine import *
 from link import Link
 import numpy as np
 from math import isnan
+import pandas as pd
 
 
 class MultiHead():
     def __init__(self):
         self.heads = []
         self.links = []
+        self.frame_sequence = []
 
     @classmethod
     def joined_heads(cls, head1, head2):
@@ -94,17 +96,17 @@ class MultiHead():
         eye_coord = []
         for frame, ind in enumerate(my_eye_ind):
             if ind:
-                print(frame, ind)
+                # print(frame, ind)
                 ind_xy = np.argwhere(self.heads[frame].xy_mesh == ind)
                 eye_coord.append(self.heads[frame].xyz[ind_xy][0][0])
-                print("coordinate of the left eye: {} in frame {}".format(self.heads[frame].xyz[ind_xy][0][0], frame))
+                # print("coordinate of the left eye: {} in frame {}".format(self.heads[frame].xyz[ind_xy][0][0], frame))
         eye_coord = np.array(eye_coord)
         mean_coord = np.mean(eye_coord, axis=0)
-        print(mean_coord)
+        # print(mean_coord)
         sub_mean = eye_coord - mean_coord
-        print(sub_mean)
+        # print(sub_mean)
         distances = np.linalg.norm(sub_mean, axis=1)
-        print("mean coordinate: {}. Distance to each points: {}.".format(mean_coord, distances))
+        # print("mean coordinate: {}. Distance to each points: {}.".format(mean_coord, distances))
         print(f"mean distance: {np.mean(distances)}")
         return np.mean(distances)
 
@@ -155,8 +157,8 @@ class MultiHead():
     #     draw_matches(head1, head2, matches, inliers)
     #     return True
 
-    def get_next_unpositioned_link(self, method="coverage"):
-        if not method in ["coverage", "matches", "dynamic"]:
+    def get_next_unpositioned_link(self, sift_transform_method="coverage"):
+        if not sift_transform_method in ["coverage", "matches", "dynamic"]:
             raise ValueError
         best_error = 1
         best_coverage = -1
@@ -172,18 +174,20 @@ class MultiHead():
             # if this is the best error so far and either (one of the 2 heads is visible, or none of all the heads is visible)
             possibly_this_link = ((head_left.visible and not head_right.visible) or (
                     (not head_left.visible) and head_right.visible) or not any_head_positioned)
-            if ((link.err_matches < best_error and method == "matches") or (
-                    link.coverage_all_points > best_coverage and method == "coverage")) and possibly_this_link:
+            if ((link.err_matches < best_error and sift_transform_method == "matches") or (
+                    link.coverage_all_points > best_coverage and sift_transform_method == "coverage")) and possibly_this_link:
                 best_error = link.err_matches
                 best_coverage = link.coverage_all_points
                 best_link_index = i
         return best_link_index, best_error
 
     def reset_all_head_positions(self):
+        self.frame_sequence=[]
         for head in self.heads:
             head.reset_positions()
             head.reset_colors()
             head.visible = False
+
 
     def reset_all_head_colors(self):
         for head in self.heads:
@@ -204,24 +208,24 @@ class MultiHead():
             link.add_ransac_results(inliers_all_points, coverage_all_points, inliers_matches, err_matches, matches)
         return link
 
-    def sift_transform_from_link(self, link, right_to_left, method="coverage"):
-        if not method in ["coverage", "matches", "dynamic"]:
+    def sift_transform_from_link(self, link, right_to_left, sift_transform_method="coverage"):
+        if not sift_transform_method in ["coverage", "matches", "dynamic"]:
             raise ValueError
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
         # if not hasattr(link, "matches"):
         link = self.ransac_from_link(link)
         xyz1, xyz2, matches = get_xyz_from_matches(head1, head2, link.matches)
-        if method == "dynamic":
+        if sift_transform_method == "dynamic":
             if isnan(link.err_matches):
                 inliers = link.inliers_all_points
             elif link.err_matches < 0.01:
                 inliers = link.inliers_matches
             else:
                 inliers = link.inliers_all_points
-        elif method == "coverage":
+        elif sift_transform_method == "coverage":
             inliers = link.inliers_all_points
-        elif method == "matches":
+        elif sift_transform_method == "matches":
             inliers = link.inliers_matches
         head1.keypoints = xyz1[inliers]
         head2.keypoints = xyz2[inliers]
@@ -270,7 +274,7 @@ class MultiHead():
                                       pos_over_range=cartesian_over_range, filter=filter)
         return filter, score
 
-    def all_transforms_from_link(self, link, method="coverage", ICP=True, Refine_Range=True, Refine_local=True):
+    def all_transforms_from_link(self, link, sift_transform_method="coverage", icp=True, refine_range=True, refine_local=True):
         '''
         :param link: The link for which all transforms are to be performed
         :return: the link itslef, unmodified.
@@ -280,6 +284,12 @@ class MultiHead():
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
 
+        if link.right not in self.frame_sequence:
+            self.frame_sequence.append(link.right)
+        if link.left not in self.frame_sequence:
+            self.frame_sequence.append(link.left)
+
+
         right_to_left = head2.visible and not head1.visible
         if right_to_left:
             self.last_head_id = self.head_id_from_frame_id(link.right)
@@ -287,16 +297,16 @@ class MultiHead():
             self.last_head_id = self.head_id_from_frame_id(link.left)
 
         # perform the transformation based on the calculated SIFT matches:
-        self.sift_transform_from_link(link, right_to_left, method=method)
+        self.sift_transform_from_link(link, right_to_left, sift_transform_method=sift_transform_method)
         # perform the ICP transformation
-        if ICP:
+        if icp:
             self.icp_transform_from_link(link, right_to_left)
 
         # perform the refine operation
         filter = None
         # first peform a
 
-        if Refine_Range:
+        if refine_range:
             filter, score = self.refine_transform_from_link(link, right_to_left, angle_over_range=True,
                                                             cartesian_over_range=True,
                                                             filter=filter)
@@ -305,7 +315,7 @@ class MultiHead():
                                                             filter=filter)
         else:
             score = 1000  # just very high
-        if Refine_local:
+        if refine_local:
             last_score = 0
             before_last_score = 0
             while score > last_score or score > before_last_score:
@@ -384,40 +394,29 @@ class MultiHead():
         self.create_spheres(sparcity=sparcity, name=name)
         subprocess.run(["python", "gui.py", "alpha", f"{int(alpha)}"])
 
-    def create_png_series(self):
+    def create_png_series(self, name="", sparcity=0.5):
 
         self.reset_all_head_colors()
         for head in self.heads:
             head.visible = False
         sequence = self.heads[0].sequence_id
-        for link_idx in range(14):  # iterate through the links between heads
-            link = self.links[link_idx]
-            head1 = self.heads[self.head_id_from_frame_id(link.right)]
-            head2 = self.heads[self.head_id_from_frame_id(link.left)]
-            right_to_left = head2.visible and not head1.visible
-            if right_to_left:
-                self.last_head_id = self.head_id_from_frame_id(link.right)
-            else:
-                self.last_head_id = self.head_id_from_frame_id(link.left)
-
-            head1.visible = True
-            head2.visible = True
-
+        print(self.frame_sequence)
+        for i, head_idx in enumerate (self.frame_sequence):
+            head=self.heads[head_idx-1]
+            head.visible = True
             self.reset_all_head_colors()
-            self.heads[self.last_head_id].paint([.2, .2, 1])
+            head.paint([.2, .2, 1])
 
             if sequence in [2, 4]:
-                alpha = -10 - link_idx * 360 / 15
+                alpha = -(head_idx-self.frame_sequence[0]) * 360 / 15
             else:
-                alpha = 10 + link_idx * 360 / 15
-            self.create_png_of_spheres(sparcity=0.5, name=f"Seq_{sequence}_{link_idx}", alpha=alpha)
+                alpha = (head_idx-self.frame_sequence[0]) * 360 / 15
+            if i != 0:
+                file_name=f"Seq_{sequence}_{i}_{name}".replace("__","_")
+                self.create_png_of_spheres(sparcity=sparcity, name=file_name, alpha=alpha)
         self.reset_all_head_colors()
-        link_idx = 14
-        if sequence in [2, 4]:
-            alpha = -10 - link_idx * 360 / 15
-        else:
-            alpha = 10 + link_idx * 360 / 15
-        self.create_png_of_spheres(sparcity=0.5, name=f"Seq_{sequence}_all", alpha=alpha)
+        file_name = f"Seq_{sequence}_all_{name}".replace("__", "_")
+        self.create_png_of_spheres(sparcity=sparcity, name=file_name, alpha=alpha)
 
     def create_mesh(self, name):
         def n2v(p):
@@ -486,3 +485,76 @@ class MultiHead():
 
         pickle.dump((self.objects,name) , open(f"pickled_head/head_mesh.p", 'wb'))
         print("completed")
+
+
+    def Method_A(self, sift_transform_method="coverage", icp=True, refine_range=True, refine_local=True, verbose=True):
+        for link_idx in range(14):  # iterate through the links between heads
+            # calculate and perform all transformations for each link:
+            if verbose:
+                self.links[link_idx].print_short()
+            self.all_transforms_from_link(self.links[link_idx], sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local)
+
+    def Method_B(self, sift_transform_method="coverage", icp=True, refine_range=True, refine_local=True, verbose=True):
+
+        for link_idx in range(6,14):  # iterate through the links between heads
+            if verbose:
+                self.links[link_idx].print_short()
+            self.all_transforms_from_link(self.links[link_idx], sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range,
+                                          refine_local=refine_local)
+        for link_idx in range(5, -1, -1):
+            if verbose:
+                self.links[link_idx].print_short()
+            self.all_transforms_from_link(self.links[link_idx], sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local)
+
+    def Method_C(self, sift_transform_method="coverage", icp=True, refine_range=True, refine_local=True, verbose=True):
+        only_first_n = 15
+        self.reset_all_head_positions()
+        link_idx, err = self.get_next_unpositioned_link(sift_transform_method=sift_transform_method)
+        positioned_head_count = 0
+        while (not link_idx is None) and (positioned_head_count < only_first_n or only_first_n == -1):
+            if verbose:
+                self.links[link_idx].print_short()
+            self.all_transforms_from_link(self.links[link_idx], sift_transform_method=sift_transform_method, icp=icp,
+                                          refine_range=refine_range, refine_local=refine_local)
+            link_idx, err = self.get_next_unpositioned_link(sift_transform_method=sift_transform_method)
+            positioned_head_count = max(positioned_head_count + 1, 2)
+
+
+
+    def create_dataframe(self):
+        self.df = pd.DataFrame(columns=['Right', 'Left', 'Err', 'Matches', 'Inliers Matches', 'Inliers Points', 'Coverage'])
+        for link in self.links:
+            self.df = self.df.append({'Right': int(link.right),
+                            'Left': int(link.left),
+                            'Err': link.err_matches,
+                            'Matches': len(link.matches),
+                            'Inliers Matches': sum(link.inliers_matches),
+                            'Inliers Points': sum(link.inliers_all_points),
+                            'Coverage': link.coverage_all_points},
+                           ignore_index=True)
+        return self.df
+
+    def try_methods(self,refine_range=False, refine_local=False):
+        self.results = pd.DataFrame(
+            columns=['method,', 'sift_transform_method', 'icp', 'refine_range', 'refine_local', 'mean_dist'])
+
+        for method in ['A','C']:
+            for sift_transform_method in ["coverage","matches","dynamic"]:
+                for icp in [True,False]:
+                    if method == 'A':
+                        # Method A
+                        self.Method_A(sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local, verbose=False)
+                    elif method == 'B':
+                        # Method B
+                        self.Method_B(sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local, verbose=False)
+                    elif method == 'C':
+                        # Method C
+                        self.Method_C(sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local, verbose=False)
+                    self.results = self.results.append({'method': method,
+                                    'sift_transform_method': sift_transform_method,
+                                    'icp': icp,
+                                    'refine_range': refine_range,
+                                    'refine_local': refine_local,
+                                    'mean_dist': self.left_eye_deviation()},
+                                   ignore_index=True)
+        return self.results
