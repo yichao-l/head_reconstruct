@@ -13,7 +13,12 @@ def get_matches(head1, head2):
     # unfoled the list
     # matches = [val for sublist in matches for val in sublist]
     # using one nearest neighbor
-    matches = [sublist[0] for sublist in matches]
+    matches = [val
+               for sublist in matches
+               for val in sublist]
+
+    # matches = [sublist[0] for sublist in matches]
+    print(len(matches))
     return matches
 
 
@@ -68,19 +73,19 @@ def estimate_transform(head1, head2, matches):
     # RANSAC parameters
 
     max_dist_matches = 0.007
-    max_dist_all_points = 0.02
+    max_dist_all_points = 0.01
 
-    no_iterations = 5000
-    no_iterations_all_points = 200
+    no_iterations = 10000
+    no_iterations_all_points = 0
     min_num_inliers = 6
     sample_thresh = 0.6
 
     best_count_all_points = 0
     best_count_matches = 0
-    best_coverage_all_points = 0
-    best_err_matches = 1000
+    best_coverage_all_points = -1
+    best_err_matches = 1000  #
     best_inliers_all_points = []
-    best_inliers_matches = []
+    best_kp_sample_matches = []
 
     l = head2.xyz.shape[0]
     filter2 = np.random.random((l)) < 0.1
@@ -89,59 +94,70 @@ def estimate_transform(head1, head2, matches):
     temp_best_tform = None
     with tqdm(total=no_iterations) as progressbar:
         for j in range(no_iterations):
-            kp_sample = np.random.rand(kp_xyz2.shape[0]) > sample_thresh
-            progressbar.update(1)
-            temp_best_count = 0
-            for i in range(20):
-                if np.sum(kp_sample) >= min_num_inliers:
-                    try:
-                        d, Z, tform = procrustes(kp_xyz1[kp_sample], kp_xyz2[kp_sample])
-                        R, c, t = tform['rotation'], tform['scale'], tform['translation']
-                        dist = np.linalg.norm(kp_xyz2.dot(c * R) + t - kp_xyz1, axis=1)
-                        last_kp_sample = kp_sample.copy()
-                        inliers = dist < max_dist_matches
-                        if np.sum(inliers) > min_num_inliers:
-                            err = np.sqrt(np.var(dist) / (np.sum(inliers) - min_num_inliers))
-                        else:
-                            err = float("NaN")
+            kp_sample = np.random.rand(kp_xyz2.shape[0]) > sample_thresh  # get random sample set
+            # kp_sample = np.random.rand(kp_xyz2.shape[0]) > np.random.rand()
+            progressbar.update(1)  # tqdm
+            temp_best_count = -1
+            if np.sum(kp_sample) >= min_num_inliers:  # enough points to unambiguously define transformation?
+                _, _, tform = procrustes(kp_xyz1[kp_sample], kp_xyz2[kp_sample])
+                R, c, t = tform['rotation'], tform['scale'], tform['translation']
+                dist = np.linalg.norm(kp_xyz2.dot(c * R) + t - kp_xyz1, axis=1)
+                # last_kp_sample = kp_sample.copy()
+                inliers = dist < max_dist_matches
+                # print(np.sum(inliers))
+                # if np.sum(inliers) > min_num_inliers:
+                #     _, _, tform_inliers = procrustes(kp_xyz1[inliers], kp_xyz2[inliers])
+                #     R, c, t = tform_inliers['rotation'], tform_inliers['scale'], tform_inliers['translation']
+                #     dist = np.linalg.norm(kp_xyz2.dot(c * R) + t - kp_xyz1, axis=1)
+                #     err = np.sqrt(np.var(dist) / (np.sum(last_kp_sample) - min_num_inliers))
+                # else:
+                #     # if np.sum(last_kp_sample) > min_num_inliers and i>0:
+                #     #     err = np.sqrt(np.var(dist) / (np.sum(last_kp_sample) - min_num_inliers))
+                #     # else:
+                #     err = float("NaN")
 
-                        if (np.sum(inliers) >= temp_best_count):
-                            # if (err < best_err) and np.sum(inliers)>min_num_inliers:
-                            temp_best_count = np.sum(inliers)
-                            temp_best_err = err
-                            temp_best_inliers = kp_sample.copy()  # inliers.copy()
-                            temp_best_tform = tform
+                if (np.sum(inliers) > best_count_matches):
+                    # if (err < best_err_matches) :
+                    best_kp_sample_matches = kp_sample.copy()
+                    best_count_matches = np.sum(inliers)
+                    err = np.sqrt(np.var(dist) / (np.sum(kp_sample) - min_num_inliers))
+                    best_err_matches = err
+                    # best_tform = tform
 
-                        if np.all(last_kp_sample == inliers):
-                            break
-                    except:
-                        pass
-                else:
-                    break
+                    # if temp_best_count > best_count_matches or (
+                    #         temp_best_count == best_count_matches and temp_best_err < best_err_matches):
+                    #     best_count_matches = temp_best_count
+                    #     best_err_matches = temp_best_err
+                    #     best_kp_sample_matches = temp_best_inliers.copy()
+                    progressbar.set_description(
+                        f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_coverage_all_points :.2f}%")
 
-            if not temp_best_tform is None:
                 if j < no_iterations_all_points:
-                    R, c, t = temp_best_tform['rotation'], temp_best_tform['scale'], temp_best_tform['translation']
+                    R, c, t = tform['rotation'], tform['scale'], tform[
+                        'translation']
                     xyz2_trans = xyz2.dot(c * R) + t
                     distances, indices = nearest_neighbor(xyz2_trans, xyz1)
                     count_all_points = np.sum(distances < max_dist_all_points)
                     if count_all_points > best_count_all_points:
                         best_count_all_points = count_all_points
                         best_coverage_all_points = best_count_all_points / xyz2.shape[0]
-                        best_inliers_all_points = temp_best_inliers.copy()
+                        best_inliers_all_points = kp_sample.copy()
                         progressbar.set_description(
-                            f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} match:{100 * best_coverage_all_points :.2f}%")
-                if temp_best_count > best_count_matches or (
-                        temp_best_count == best_count_matches and temp_best_err < best_err_matches):
-                    best_count_matches = temp_best_count
-                    best_err_matches = temp_best_err
-                    best_inliers_matches = temp_best_inliers.copy()
-                    progressbar.set_description(
-                        f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} match:{100 * best_coverage_all_points :.2f}%")
+                            f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_coverage_all_points :.2f}%")
 
-    return best_inliers_all_points, best_coverage_all_points, best_inliers_matches, best_err_matches, matches
-
-
+            # if not temp_best_tform is None:
+            # if j < no_iterations_all_points:
+            #     R, c, t = temp_best_tform['rotation'], temp_best_tform['scale'], temp_best_tform['translation']
+            #     xyz2_trans = xyz2.dot(c * R) + t
+            #     distances, indices = nearest_neighbor(xyz2_trans, xyz1)
+            #     count_all_points = np.sum(distances < max_dist_all_points)
+            #     if count_all_points > best_count_all_points:
+            #         best_count_all_points = count_all_points
+            #         best_coverage_all_points = best_count_all_points / xyz2.shape[0]
+            #         best_inliers_all_points = temp_best_inliers.copy()
+            #         progressbar.set_description(
+            #             f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_coverage_all_points :.2f}%")
+    return best_inliers_all_points, best_coverage_all_points, best_kp_sample_matches, best_err_matches, matches
 
 
 

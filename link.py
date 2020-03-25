@@ -29,8 +29,8 @@ class Link():
             del self.inliers_all_points
         if hasattr(self, "coverage_all_points"):
             del self.coverage_all_points
-        if hasattr(self, "inliers_matches"):
-            del self.inliers_matches
+        if hasattr(self, "kp_sample_matches"):
+            del self.kp_sample_matches
         if hasattr(self, "err_matches"):
             del self.err_matches
         if hasattr(self, "matches"):
@@ -40,7 +40,7 @@ class Link():
 
         self.inliers_all_points = inliers_all_points
         self.coverage_all_points = coverage_all_points
-        self.inliers_matches = inliers_matches
+        self.kp_sample_matches = inliers_matches
         self.err_matches = err_matches
         self.matches = matches
 
@@ -48,8 +48,8 @@ class Link():
         print("left:", self.left, "\tright:", self.right)
         if hasattr(self, "matches"):
             print(f"# Matches {len(self.matches)}")
-        if hasattr(self, "inliers_matches"):
-            print(f"# Inliers {len(self.inliers_matches)}")
+        if hasattr(self, "kp_sample_matches"):
+            print(f"# Inliers {len(self.kp_sample_matches)}")
         if hasattr(self, "coverage_all_points"):
             print(f"Coverage {100 * self.coverage_all_points:.0f}%")
         if hasattr(self, "err_matches"):

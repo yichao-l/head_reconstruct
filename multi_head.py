@@ -202,10 +202,10 @@ class MultiHead():
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
         if not hasattr(link, "matches"):
             matches = get_matches(head1, head2)
-            inliers_all_points, coverage_all_points, inliers_matches, err_matches, matches = estimate_transform(head1,
-                                                                                                                head2,
-                                                                                                                matches)
-            link.add_ransac_results(inliers_all_points, coverage_all_points, inliers_matches, err_matches, matches)
+            inliers_all_points, coverage_all_points, kp_sample_matches, err_matches, matches = estimate_transform(head1,
+                                                                                                                  head2,
+                                                                                                                  matches)
+            link.add_ransac_results(inliers_all_points, coverage_all_points, kp_sample_matches, err_matches, matches)
         return link
 
     def sift_transform_from_link(self, link, right_to_left, sift_transform_method="coverage"):
@@ -220,13 +220,13 @@ class MultiHead():
             if isnan(link.err_matches):
                 inliers = link.inliers_all_points
             elif link.err_matches < 0.01:
-                inliers = link.inliers_matches
+                inliers = link.kp_sample_matches
             else:
                 inliers = link.inliers_all_points
         elif sift_transform_method == "coverage":
             inliers = link.inliers_all_points
         elif sift_transform_method == "matches":
-            inliers = link.inliers_matches
+            inliers = link.kp_sample_matches
         head1.keypoints = xyz1[inliers]
         head2.keypoints = xyz2[inliers]
 
@@ -520,27 +520,50 @@ class MultiHead():
             positioned_head_count = max(positioned_head_count + 1, 2)
 
 
-
     def create_dataframe(self):
-        self.df = pd.DataFrame(columns=['Right', 'Left', 'Err', 'Matches', 'Inliers Matches', 'Inliers Points', 'Coverage'])
+        self.df = pd.DataFrame(
+            columns=['Right', 'Left', 'Err', 'Matches', 'Inliers for Matches', 'Inliers for Coverage', 'Coverage'])
         for link in self.links:
             self.df = self.df.append({'Right': int(link.right),
-                            'Left': int(link.left),
-                            'Err': link.err_matches,
-                            'Matches': len(link.matches),
-                            'Inliers Matches': sum(link.inliers_matches),
-                            'Inliers Points': sum(link.inliers_all_points),
-                            'Coverage': link.coverage_all_points},
-                           ignore_index=True)
+                                      'Left': int(link.left),
+                                      'Err': link.err_matches,
+                                      'Matches': len(link.matches),
+                                      'Inliers for Matches': sum(link.kp_sample_matches),
+                                      'Inliers for Coverage': sum(link.inliers_all_points),
+                                      'Coverage': link.coverage_all_points},
+                                     ignore_index=True)
         return self.df
 
-    def try_methods(self,refine_range=False, refine_local=False):
+    def create_df_for_report(self):
+        self.create_dataframe()
+        df = self.df.copy()
+        df[["Right", "Left", "Inliers for Matches", "Inliers for Coverage", "Matches"]] = df[
+            ["Right", "Left", "Inliers for Matches", "Inliers for Coverage", "Matches"]].astype("int")
+        df['Pair'] = df.Left.map(str) + " - " + df.Right.map(str)
+        df = df.drop(columns=['Right', 'Left', 'Inliers for Coverage'])
+        df['Coverage'] = df['Coverage'] * 100
+        df['Coverage'] = df.Coverage.map('{:,.2f}%'.format)
+        df['Err'] = df.Err.map('{:,.4f}'.format)
+        df = df.rename(columns={"Inliers for Matches": "Inliers"})
+        df = df[['Pair', 'Matches', 'Inliers', 'Err', 'Coverage']]
+        print(df.to_latex(index=False))
+        return df
+
+    def create_res_for_report(self):
+        res = self.results.copy()
+        res = res.rename(columns={'sift_transform_method': 'method'})
+        res = res.drop(columns=['refine_range', 'refine_local'])
+        print(res.to_latex(index=False))
+        return res
+
+    def try_methods(self, refine_range=False, refine_local=False):
         self.results = pd.DataFrame(
             columns=['method', 'sift_transform_method', 'icp', 'refine_range', 'refine_local', 'mean_dist'])
 
-        for method in ['A','C']:
-            for sift_transform_method in ["coverage","matches","dynamic"]:
-                for icp in [True,False]:
+        for method in ['A', 'C']:
+            for sift_transform_method in ["coverage", "matches", "dynamic"]:
+                # for sift_transform_method in ["matches"]:
+                for icp in [True, False]:
                     if method == 'A':
                         # Method A
                         self.Method_A(sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local, verbose=False)
