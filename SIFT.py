@@ -13,11 +13,7 @@ def get_matches(head1, head2):
     # unfoled the list
     # matches = [val for sublist in matches for val in sublist]
     # using one nearest neighbor
-    matches = [val
-               for sublist in matches
-               for val in sublist]
-
-    # matches = [sublist[0] for sublist in matches]
+    matches = [sublist[0] for sublist in matches]
     print(len(matches))
     return matches
 
