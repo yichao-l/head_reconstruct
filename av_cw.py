@@ -15,6 +15,7 @@ for frame_idx in range(1, 16):  # loop through all frames
     # Read the data from the file, define by Sequence and frame_idx and store the data in a SingeHead object
     head = SingleHead.read_from_file(Sequence,
                                      frame_idx)
+    print(frame_idx)
     # apply all filters to remove the unwanted cloud points.
     head.apply_all_filters()
     # save the processed head
@@ -26,6 +27,7 @@ list_of_all_heads = [SingleHead.load_from_pickle(Sequence, i) for i in
 
 # create a MultiHead object from the list:
 mhead = MultiHead.create_from_heads(list_of_all_heads)
+mhead.save()
 # calculate teh SIFT points for each SingleHead in the MultiHead object:
 mhead.calc_all_sift_keypoints()
 # calculate the SIFT transform for each pair of adjacent heads, each pair of adjacnt SingleHeads shares a Link Object:

@@ -27,16 +27,19 @@ class MultiHead():
         return this
 
     @classmethod
-    def load_from_pickle(cls, sequence_id):
+    def load_from_pickle(cls, sequence_id, name=None):
 
         '''
         :param data_file:  file to load from, default name is the default file used for saving
         :return: object of  threeD_head class
         '''
-        print(f"Loading Sequence {sequence_id}...", end="")
-        data_file = f"pickled_head/mhead{sequence_id}.p"
+        if name is None:
+            print(f"Loading Sequence {sequence_id}...", end="")
+            data_file = f"pickled_head/mhead{sequence_id}.p"
+        else:
+            data_file = f"pickled_head/{name}.p"
+            print(f"Loading {data_file}...", end="")
         try:
-
             with open(data_file, 'rb') as file_object:
                 raw_data = file_object.read()
             this = pickle.loads(raw_data)
