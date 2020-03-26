@@ -33,12 +33,12 @@ class Link():
         if hasattr(self, "matches"):
             del self.matches
 
-    def add_ransac_results(self, sample_matches_cvg, best_err_coverage, sample_matches_mchs, err_matches, matches):
+    def add_ransac_results(self, sample_matches_cvg, err_coverage, sample_matches_mchs, err_matches, matches):
         '''
         Store the results from the RANSAC computation to the object.
         '''
         self.sample_matches_cvg = sample_matches_cvg
-        self.best_err_coverage = best_err_coverage
+        self.err_coverage = err_coverage
         self.sample_matches_mchs = sample_matches_mchs
         self.err_matches = err_matches
         self.matches = matches

@@ -28,10 +28,9 @@ class MultiHead():
 
     @classmethod
     def load_from_pickle(cls, sequence_id, name=None):
-
         '''
         :param data_file:  file to load from, default name is the default file used for saving
-        :return: object of  threeD_head class
+        :return: object of  MultiHead class
         '''
         if name is None:
             print(f"Loading Sequence {sequence_id}...", end="")
@@ -45,28 +44,26 @@ class MultiHead():
             this = pickle.loads(raw_data)
         except:
             raise FileExistsError(f'{data_file} could not be found, create {data_file} by using .save() first ')
-
+        # load the keypoint information from pickle
         for head in this.heads:
             if hasattr(head, 'kp'):
                 head.kp = [cv2.KeyPoint(x=point[0][0], y=point[0][1], _size=point[1], _angle=point[2],
                                         _response=point[3], _octave=point[4], _class_id=point[5]) for point in head.kp]
-
+        # load the link information from pickle
         for link in this.links:
             if hasattr(link, 'matches'):
                 link.matches = [cv2.DMatch(_distance=match[0], _imgIdx=match[1], _queryIdx=match[2], _trainIdx=match[3])
                                 for match in link.matches]
-
         print("done")
         return this
 
     @classmethod
     def create_from_heads(cls, list_of_heads, first=0, last=14):
         '''
-
-        :param list_of_heads:
-        :param first:
-        :param last:
-        :return:
+        :param list_of_heads: A list of SingleHead objects
+        :param first: frame id of the first head
+        :param last: frame id of the last head
+        :return: an MultiHead object
         '''
         print("creating mhead object from a list of SingleHead objects")
         list_of_heads[first].reset_positions()
@@ -86,6 +83,7 @@ class MultiHead():
 
     def left_eye_deviation(self):
         '''
+        Compute the error deviation from the prelabeled points.
         param: sequence_id (int) the person's number
         Return: the mean and the deviations of the left eyes in the 3D model for the person with sequence_id.
         '''
@@ -99,17 +97,12 @@ class MultiHead():
         eye_coord = []
         for frame, ind in enumerate(my_eye_ind):
             if ind:
-                # print(frame, ind)
                 ind_xy = np.argwhere(self.heads[frame].xy_mesh == ind)
                 eye_coord.append(self.heads[frame].xyz[ind_xy][0][0])
-                # print("coordinate of the left eye: {} in frame {}".format(self.heads[frame].xyz[ind_xy][0][0], frame))
         eye_coord = np.array(eye_coord)
         mean_coord = np.mean(eye_coord, axis=0)
-        # print(mean_coord)
         sub_mean = eye_coord - mean_coord
-        # print(sub_mean)
         distances = np.linalg.norm(sub_mean, axis=1)
-        # print("mean coordinate: {}. Distance to each points: {}.".format(mean_coord, distances))
         print(f"mean distance: {np.mean(distances)}")
         return np.mean(distances)
 
@@ -130,6 +123,9 @@ class MultiHead():
             self.ransac_from_link(link)
 
     def append(self, head):
+        '''
+        Append another head to the list of heads
+        '''
         head.reset_positions()
         head.visible = False
         head.center()
@@ -145,6 +141,9 @@ class MultiHead():
         raise ValueError
 
     def get_next_unpositioned_link(self, sift_transform_method="coverage"):
+        '''
+        Return the next link to merge based the error of the links.
+        '''
         if not sift_transform_method in ["coverage", "matches", "dynamic"]:
             raise ValueError
         best_error = 1
@@ -169,6 +168,9 @@ class MultiHead():
         return best_link_index, best_error
 
     def reset_all_head_positions(self):
+        '''
+        Reset the head positions and colors to initial values
+        '''
         self.frame_sequence=[]
         for head in self.heads:
             head.reset_positions()
@@ -177,6 +179,9 @@ class MultiHead():
 
 
     def reset_all_head_colors(self):
+        '''
+        Reset the head color to initial values
+        '''
         for head in self.heads:
             head.reset_colors()
 
@@ -191,11 +196,11 @@ class MultiHead():
         # if the maches has not yet been computed
         if not hasattr(link, "matches"):
             matches = get_matches(head1, head2)
-            sample_matches_cvg, best_err_coverage, sample_matches_mchs, err_matches, matches = estimate_transform(head1,
+            sample_matches_cvg, err_coverage, sample_matches_mchs, err_matches, matches = estimate_transform(head1,
                                                                                                                   head2,
                                                                                                                   matches)
             # store the results
-            link.add_ransac_results(sample_matches_cvg, best_err_coverage, sample_matches_mchs, err_matches, matches)
+            link.add_ransac_results(sample_matches_cvg, err_coverage, sample_matches_mchs, err_matches, matches)
         return link
 
     def sift_transform_from_link(self, link, right_to_left, sift_transform_method="matches"):
@@ -214,22 +219,26 @@ class MultiHead():
 
         # use different set of match points based on the transform_method which can be ["coverage", "matches", "dynamic"]. 
         if sift_transform_method == "dynamic":
-            if isnan(link.err_matches):
+            if isnan(link.err_matches): # if the error value using match point inliers is Nan
                 spl_mchs = link.sample_matches_cvg
-            elif link.err_matches < 0.01:
+            elif link.err_matches < 0.01: # if the error value is less that 0.01
                 spl_mchs = link.kp_sample_matches
             else:
                 spl_mchs = link.sample_matches_cvg
+        # use the coverage error measure 
         elif sift_transform_method == "coverage":
             spl_mchs = link.sample_matches_cvg
+        # use the matches error measure 
         elif sift_transform_method == "matches":
             spl_mchs = link.sample_matches_mchs
         head1.keypoints = xyz1[spl_mchs]
         head2.keypoints = xyz2[spl_mchs]
 
+        # set color for drawings
         head1.keypoints_clr = [1, 0, 0]
         head2.keypoints_clr = [0, 1, 0]
 
+        # perform the transformation
         if right_to_left:
             d, Z, tform12 = procrustes(xyz2[spl_mchs], xyz1[spl_mchs])
             t = tform12['rotation']
@@ -237,19 +246,17 @@ class MultiHead():
         else:
             d, Z, tform21 = procrustes(xyz1[spl_mchs], xyz2[spl_mchs])
             t = tform21['rotation']
-
             head2.transform(tform21)
+        # generate the images indicating the transformation
         draw_matches(head1, head2, link.matches, spl_mchs)
         return link
 
     def icp_transform_from_link(self, link, right_to_left):
         '''
-
         :param link: the Link object between the two heads that are to be ICP-ed
         :param right_to_left: in which direction is the ICP happening? Left to right or rightto left
         :return: link, while correct head has been transformed
         '''
-
         if right_to_left:
             self.icp_transform(link.left, link.right,
                                max_iterations=1)
@@ -392,7 +399,9 @@ class MultiHead():
         subprocess.run(["python", "gui.py", "alpha", f"{int(alpha)}"])
 
     def create_png_series(self, name="", sparcity=0.5):
-
+        '''
+        Generate the image sequences for the merge set
+        '''
         self.reset_all_head_colors()
         for head in self.heads:
             head.visible = False
@@ -416,14 +425,17 @@ class MultiHead():
         self.create_png_of_spheres(sparcity=sparcity, name=file_name, alpha=alpha)
 
     def create_mesh(self, name):
+        '''
+        The full head pixel reduction algorithm as described in Building as complete a 3D head as possible
+        '''
         def n2v(p):
             return vec(p[0], p[1], p[2])
-
         def prj(p):
             return vec(p[0], -p[1], -p[2])
         self.objects = []
         O = np.asarray([0, 0, 0.05])
 
+        # set the vertically varying values
         y_range = (-0.35, 0.20)
         o = {'type': "point", 'pos': prj(O + np.asarray([0, 1, 0]) * y_range[0]), 'radius': "0.01",
              'color': vec(0, 1, 0)}
@@ -443,6 +455,7 @@ class MultiHead():
         points_s = points[filter_s]
         colors_s = colors[filter_s]
         y_range = np.arange(y_range[0], y_range[1], step=y_step)
+        
         with tqdm(total=y_range.size) as progressbar:
             for y in y_range:
                 O_for_y = np.asarray([0, y, 0]) + O
@@ -451,6 +464,7 @@ class MultiHead():
                 colors_ss = colors_s[filter_ss]
                 vec_from_O_ss = points_ss - O_for_y
                 angles_ss = np.mod(np.angle(vec_from_O_ss[:, 0] + 1j * vec_from_O_ss[:, 2]), 2 * np.pi)
+                # revolve through all the angles in a plane
                 for theta_0 in np.pi * np.arange(0., 360, step=big_angle_step) / 180:
                     filter_sss = np.logical_and(
                         angles_ss > theta_0 - np.pi * small_angle_step / 180,
@@ -458,7 +472,6 @@ class MultiHead():
                     points_sss = points_ss[filter_sss]
                     colors_sss = colors_ss[filter_sss]
                     vec_from_O_sss = vec_from_O_ss[filter_sss]
-                    # print(points_ss.size, points_sss.size)
                     if points_sss.size > 0:
                         for theta_1 in np.pi * np.arange(0, big_angle_step, step=small_angle_step) / 180:
                             theta = theta_0 + theta_1
@@ -470,21 +483,22 @@ class MultiHead():
                             filtered_points = points_sss[filter]
                             if len(filtered_points) > 0:
                                 angles_sss = angles_ss[filter_sss]
-                                # print(f"{np.mean(angles_sss[filter])*180/np.pi:.2f}\t{theta*180/np.pi:.2f}" )
                                 mean = np.mean(filtered_points, axis=0)
                                 mean = np.inner(U, mean - O_for_y) * np.asarray(U) + O_for_y
-
                                 mean_col = np.mean(colors_sss[filter], axis=0)
                                 self.objects.append(
                                     {'type': "point", 'pos': prj(mean), 'radius': "0.003", 'color': n2v(mean_col)})
                 progressbar.set_description(f"Scanning{np.arange(0, big_angle_step, step=small_angle_step).size}")
                 progressbar.update(1)
-
+        # save the object inside a pickle
         pickle.dump((self.objects,name) , open(f"pickled_head/head_mesh.p", 'wb'))
         print("completed")
 
 
     def Method_A(self, sift_transform_method="matches", icp=True, refine_range=True, refine_local=True, verbose=True):
+        '''
+        Build up a full head starting from the right front and revolve in one direction.
+        '''
         for link_idx in range(14):  # iterate through the links between heads
             # calculate and perform all transformations for each link:
             if verbose:
@@ -492,7 +506,9 @@ class MultiHead():
             self.all_transforms_from_link(self.links[link_idx], sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local)
 
     def Method_B(self, sift_transform_method="matches", icp=True, refine_range=True, refine_local=True, verbose=True):
-
+        '''
+        Build a full head starting from the back and build up from both directions to the front.
+        '''
         for link_idx in range(6,14):  # iterate through the links between heads
             if verbose:
                 self.links[link_idx].print_short()
@@ -504,6 +520,9 @@ class MultiHead():
             self.all_transforms_from_link(self.links[link_idx], sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local)
 
     def Method_C(self, sift_transform_method="matches", icp=True, refine_range=True, refine_local=True, verbose=True):
+        '''
+        Build up a full head by starting from the link with the lowest error and leave the one with the worst in the end.
+        '''
         only_first_n = 15
         self.reset_all_head_positions()
         link_idx, err = self.get_next_unpositioned_link(sift_transform_method=sift_transform_method)
@@ -518,6 +537,9 @@ class MultiHead():
 
 
     def create_dataframe(self):
+        '''
+        Generate the dataFrame for quantitative analysis
+        '''
         self.df = pd.DataFrame(
             columns=['Right', 'Left', 'Err', 'Matches', 'Inliers for Matches', 'Inliers for Coverage', 'Coverage'])
         for link in self.links:
@@ -532,6 +554,9 @@ class MultiHead():
         return self.df
 
     def create_df_for_report(self):
+        '''
+        Populate the dataFrame with data for quantitative analysis
+        '''
         self.create_dataframe()
         df = self.df.copy()
         df[["Right", "Left", "Inliers for Matches", "Inliers for Coverage", "Matches"]] = df[
@@ -547,6 +572,9 @@ class MultiHead():
         return df
 
     def create_res_for_report(self):
+        '''
+        Add another two information column to the table.
+        '''
         res = self.results.copy()
         res = res.rename(columns={'sift_transform_method': 'method'})
         res = res.drop(columns=['refine_range', 'refine_local'])
@@ -554,6 +582,9 @@ class MultiHead():
         return res
 
     def try_methods(self, refine_range=False, refine_local=False):
+        '''
+        Automatic generation of experiments result comparing different methods.
+        '''
         self.results = pd.DataFrame(
             columns=['method', 'sift_transform_method', 'icp', 'refine_range', 'refine_local', 'mean_dist'])
 

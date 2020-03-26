@@ -127,35 +127,39 @@ def estimate_transform(head1, head2, matches):
     return best_sample_matches_cvg, best_err_coverage, best_sample_matches_mchs, best_err_matches, matches
 
 def draw_matches(head1, head2, matches, inliers):
+    '''
+    Generate the images with the match points between two frames
+    '''
     images_dir="images"
     if not os.path.isdir(images_dir):
         os.mkdir(images_dir)
+    # set the background color
     head1.background_color=np.array([0,0,0.99])
     head2.background_color=np.array([0,0,0.99])
     img1 = cv2.cvtColor((head1.get_filtered_image() * 256).astype("uint8"), cv2.COLOR_BGR2RGB)
     img2 = cv2.cvtColor((head2.get_filtered_image() * 256).astype("uint8"), cv2.COLOR_BGR2RGB)
-
+    # parameters for drawing
     draw_params = dict(matchColor=(0, 255, 0),
                        singlePointColor=(0, 0, 255),
                        matchesMask=inliers.ravel().tolist(),
                        flags=0)
-
+    # generat the images along with the matches indication
     img3 = cv2.drawMatches(img1, head1.kp, img2, head2.kp, matches1to2=matches,
                            outImg=None, **draw_params)
-
+    # label parameters
     font = cv2.FONT_HERSHEY_SIMPLEX
     bottomLeftCornerOfText = (0, 40)
     fontScale = 1
     fontColor = (255, 255, 255)
     lineType = 2
-
+    # add text label onto the image
     cv2.putText(img3, f"Sequence {head1.sequence_id}, frames {head1.frame_id} & {head2.frame_id}",
                 bottomLeftCornerOfText,
                 font,
                 fontScale,
                 fontColor,
                 lineType)
-
+    # save the image
     file_name=f"Seq_{head1.sequence_id}_frames_SIFT_{head1.frame_id}_{head2.frame_id}.png"
     full_path= os.path.join(images_dir, file_name)
     cv2.imwrite(full_path, img3)
