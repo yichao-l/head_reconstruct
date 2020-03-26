@@ -18,6 +18,9 @@ def float_2_rgb(num):
 
 
 class SingleHead():
+    '''
+    Class for manipulating individual frames of the head.
+    '''
     def __init__(self, data_path=None):
         self.data_path = data_path
         self.background_color = [0,0,1]
@@ -72,16 +75,15 @@ class SingleHead():
             raise FileExistsError (f'{data_file} could not be found, create {data_file} by using .save() first ')
 
     def apply_all_filters(self, depth=1.5):
-
         '''
-        perform thresholding in depth axis, remove the nan pixels
-        and the flying pixels.
+        perform thresholding in depth axis, remove the nan pixels and the flying pixels.
         Then center the pixels, create vpython spheres
         '''
         self.reset_filters()
         self.filter_nan()
         self.filter_depth(depth)
         self.remove_background_color()
+        # two experimental filters that are not applied in the real production.
         # self.edge_based_filter()
         # self.parzen_filter()
         self.center()
@@ -151,8 +153,6 @@ class SingleHead():
         self.xy_mesh = np.arange(640 * 480)
         self.xyz=self.xyz_unfiltered
         self.rgb=self.rgb_unfiltered
-
-
 
     def reset_positions(self):
         '''
@@ -457,7 +457,6 @@ class SingleHead():
         # fetch the filtered 2D image as img
         img = self.get_filtered_image()
         self.kp, self.des = get_descriptors(img, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
-        
         # remove the edges that are on the edge
         diameter = 20  # minimum distance from the edge
         self.kp, self.des = self.remove_edge_points(self.kp, self.des, diameter=diameter)

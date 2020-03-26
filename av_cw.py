@@ -37,7 +37,7 @@ mhead.calc_all_sift_transforms()
 method = 'A'
 
 if method == 'A':
-    # Method A
+    # corresponds to Method A in the documentation/report.
     mhead.Method_A(sift_transform_method="matches", icp=True, refine_range=False, refine_local=False)
 elif method == 'B':
     # Method B
@@ -45,8 +45,6 @@ elif method == 'B':
 elif method == 'C':
     # Method C
     mhead.Method_C(sift_transform_method="matches", icp=True, refine_range=False, refine_local=False)
-
-
 
 # create a series of png images for the spheres
 mhead.create_png_series()

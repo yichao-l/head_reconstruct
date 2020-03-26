@@ -294,16 +294,11 @@ class MultiHead():
         else:
             self.last_head_id = self.head_id_from_frame_id(link.left)
 
-        # perform the transformation based on the calculated SIFT matches:
+        # perform the basic transformation based on the calculated SIFT matches:
         self.sift_transform_from_link(link, right_to_left, sift_transform_method=sift_transform_method)
-        # perform the ICP transformation
-        if icp:
-            self.icp_transform_from_link(link, right_to_left)
 
-        # perform the refine operation
+        # perform the Refine operation with Zwart algorithm, if it's set True
         filter = None
-        # first peform a
-
         if refine_range:
             filter, score = self.refine_transform_from_link(link, right_to_left, angle_over_range=True,
                                                             cartesian_over_range=True,
@@ -320,6 +315,10 @@ class MultiHead():
                 before_last_score = last_score
                 last_score = score
                 filter, score = self.refine_transform_from_link(link, right_to_left, filter=filter)
+            self.icp_transform_from_link(link, right_to_left)
+        
+        # perform the ICP transformation, if it's set True
+        if icp:
             self.icp_transform_from_link(link, right_to_left)
         head1.visible = True
         head2.visible = True
