@@ -67,95 +67,64 @@ def estimate_transform(head1, head2, matches):
     kp_xyz1, kp_xyz2, matches = get_xyz_from_matches(head1, head2, matches)
 
     # RANSAC parameters
-
     max_dist_matches = 0.007
-    max_dist_all_points = 0.01
+    max_dist_coverage = 0.01
 
-    no_iterations = 10000
-    no_iterations_all_points = 200
-    min_num_inliers = 6
-    sample_thresh = 0.6
+    no_iterations = 10000 # number of ransac iterations.
+    no_iterations_all_points = 200 # number of ransac that does coverage calculation.
+    min_num_matches = 6 # minimum number of matches for procrustes
+    sample_thresh = 0.6 # threshold for sampling match matches
 
-    best_count_all_points = 0
-    best_count_matches = 0
-    best_coverage_all_points = -1
-    best_err_matches = 1000  #
-    best_inliers_all_points = []
-    best_kp_sample_matches = []
+    best_count_coverage = 0 # record the best number of point covered by a transformation
+    best_count_matches = 0 # record the best number of maches covered by a tranformation
+    best_err_coverage = -1 # the coverage value that we want to maximize
+    best_err_matches = 1000  # the inlier matches that we want to maximize
+    best_sample_matches_cvg = []
+    best_sample_matches_mchs = []
 
+    # store the points from both frames for coverage calculation
     l = head2.xyz.shape[0]
     filter2 = np.random.random((l)) < 0.1
     xyz1 = head1.xyz
     xyz2 = head2.xyz[filter2]
     temp_best_tform = None
     with tqdm(total=no_iterations) as progressbar:
+        # total RANSAC iterations
         for j in range(no_iterations):
             kp_sample = np.random.rand(kp_xyz2.shape[0]) > sample_thresh  # get random sample set
-            # kp_sample = np.random.rand(kp_xyz2.shape[0]) > np.random.rand()
             progressbar.update(1)  # tqdm
             temp_best_count = -1
-            if np.sum(kp_sample) >= min_num_inliers:  # enough points to unambiguously define transformation?
+            if np.sum(kp_sample) >= min_num_matches:  # enough points to unambiguously define transformation?
                 _, _, tform = procrustes(kp_xyz1[kp_sample], kp_xyz2[kp_sample])
                 R, c, t = tform['rotation'], tform['scale'], tform['translation']
                 dist = np.linalg.norm(kp_xyz2.dot(c * R) + t - kp_xyz1, axis=1)
-                # last_kp_sample = kp_sample.copy()
                 inliers = dist < max_dist_matches
-                # print(np.sum(inliers))
-                # if np.sum(inliers) > min_num_inliers:
-                #     _, _, tform_inliers = procrustes(kp_xyz1[inliers], kp_xyz2[inliers])
-                #     R, c, t = tform_inliers['rotation'], tform_inliers['scale'], tform_inliers['translation']
-                #     dist = np.linalg.norm(kp_xyz2.dot(c * R) + t - kp_xyz1, axis=1)
-                #     err = np.sqrt(np.var(dist) / (np.sum(last_kp_sample) - min_num_inliers))
-                # else:
-                #     # if np.sum(last_kp_sample) > min_num_inliers and i>0:
-                #     #     err = np.sqrt(np.var(dist) / (np.sum(last_kp_sample) - min_num_inliers))
-                #     # else:
-                #     err = float("NaN")
-
+                
+                # if there are more inliers for this transformation.
                 if (np.sum(inliers) > best_count_matches):
-                    # if (err < best_err_matches) :
-                    best_kp_sample_matches = kp_sample.copy()
+                    best_sample_matches_mchs = kp_sample.copy()
                     best_count_matches = np.sum(inliers)
-                    err = np.sqrt(np.var(dist) / (np.sum(kp_sample) - min_num_inliers))
+                    err = np.sqrt(np.var(dist) / (np.sum(kp_sample) - min_num_matches))
                     best_err_matches = err
-                    # best_tform = tform
-
-                    # if temp_best_count > best_count_matches or (
-                    #         temp_best_count == best_count_matches and temp_best_err < best_err_matches):
-                    #     best_count_matches = temp_best_count
-                    #     best_err_matches = temp_best_err
-                    #     best_kp_sample_matches = temp_best_inliers.copy()
+                    # update the progress bar
                     progressbar.set_description(
-                        f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_coverage_all_points :.2f}%")
+                        f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_err_coverage :.2f}%")
 
+                # number of ransac that does coverage calculation
                 if j < no_iterations_all_points:
-                    R, c, t = tform['rotation'], tform['scale'], tform[
-                        'translation']
+                    R, c, t = tform['rotation'], tform['scale'], tform['translation']
                     xyz2_trans = xyz2.dot(c * R) + t
                     distances, indices = nearest_neighbor(xyz2_trans, xyz1)
-                    count_all_points = np.sum(distances < max_dist_all_points)
-                    if count_all_points > best_count_all_points:
-                        best_count_all_points = count_all_points
-                        best_coverage_all_points = best_count_all_points / xyz2.shape[0]
-                        best_inliers_all_points = kp_sample.copy()
+                    count_all_points = np.sum(distances < max_dist_coverage)
+                    # see if the new transformation has a better coverage
+                    if count_all_points > best_count_coverage:
+                        best_count_coverage = count_all_points
+                        best_err_coverage = best_count_coverage / xyz2.shape[0]
+                        best_sample_matches_cvg = kp_sample.copy()
                         progressbar.set_description(
-                            f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_coverage_all_points :.2f}%")
+                            f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_err_coverage :.2f}%")
 
-            # if not temp_best_tform is None:
-            # if j < no_iterations_all_points:
-            #     R, c, t = temp_best_tform['rotation'], temp_best_tform['scale'], temp_best_tform['translation']
-            #     xyz2_trans = xyz2.dot(c * R) + t
-            #     distances, indices = nearest_neighbor(xyz2_trans, xyz1)
-            #     count_all_points = np.sum(distances < max_dist_all_points)
-            #     if count_all_points > best_count_all_points:
-            #         best_count_all_points = count_all_points
-            #         best_coverage_all_points = best_count_all_points / xyz2.shape[0]
-            #         best_inliers_all_points = temp_best_inliers.copy()
-            #         progressbar.set_description(
-            #             f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_coverage_all_points :.2f}%")
-    return best_inliers_all_points, best_coverage_all_points, best_kp_sample_matches, best_err_matches, matches
-
-
+    return best_sample_matches_cvg, best_err_coverage, best_sample_matches_mchs, best_err_matches, matches
 
 def draw_matches(head1, head2, matches, inliers):
     images_dir="images"

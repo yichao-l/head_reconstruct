@@ -212,22 +212,25 @@ class MultiHead():
         return link
 
     def sift_transform_from_link(self, link, right_to_left, sift_transform_method="coverage"):
+        '''
+        Perform transformation estimation with the selected transformation method
+        '''
         if not sift_transform_method in ["coverage", "matches", "dynamic"]:
             raise ValueError
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
-        # if not hasattr(link, "matches"):
+
         link = self.ransac_from_link(link)
         xyz1, xyz2, matches = get_xyz_from_matches(head1, head2, link.matches)
         if sift_transform_method == "dynamic":
             if isnan(link.err_matches):
-                inliers = link.inliers_all_points
+                inliers = link.kp_sample_matches
             elif link.err_matches < 0.01:
                 inliers = link.kp_sample_matches
             else:
-                inliers = link.inliers_all_points
+                inliers = link.kp_sample_matches
         elif sift_transform_method == "coverage":
-            inliers = link.inliers_all_points
+            inliers = link.kp_sample_matches
         elif sift_transform_method == "matches":
             inliers = link.kp_sample_matches
         head1.keypoints = xyz1[inliers]
@@ -258,10 +261,10 @@ class MultiHead():
 
         if right_to_left:
             self.icp_transform(link.left, link.right,
-                               max_iterations=40)
+                               max_iterations=1)
         else:
             self.icp_transform(link.right, link.left,
-                               max_iterations=40)
+                               max_iterations=1)
         return link
 
     def refine_transform_from_link(self, link, right_to_left, angle_over_range=False, cartesian_over_range=False,
