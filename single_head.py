@@ -70,9 +70,9 @@ class SingleHead():
             return pickle.loads(raw_data)
         except:
             raise FileExistsError (f'{data_file} could not be found, create {data_file} by using .save() first ')
-    
+
     def apply_all_filters(self, depth=1.5):
-    
+
         '''
         perform thresholding in depth axis, remove the nan pixels
         and the flying pixels.
@@ -85,7 +85,6 @@ class SingleHead():
         # self.edge_based_filter()
         # self.parzen_filter()
         self.center()
-    
 
     def color_eye(self,row,column):
         self.left_eye_ind = row * 640 + column

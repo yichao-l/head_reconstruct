@@ -72,7 +72,7 @@ def estimate_transform(head1, head2, matches):
     max_dist_all_points = 0.01
 
     no_iterations = 10000
-    no_iterations_all_points = 0
+    no_iterations_all_points = 200
     min_num_inliers = 6
     sample_thresh = 0.6
 
