@@ -144,22 +144,6 @@ class MultiHead():
                 return i
         raise ValueError
 
-    # def join_heads(self, frame1, frame2):
-    #     '''
-    #     :param frame1:
-    #     :param frame2:
-    #     :return:
-    #     '''
-    #     head1 = self.heads[self.head_id_from_frame_id(frame1)]
-    #     head2 = self.heads[self.head_id_from_frame_id(frame2)]
-    #     matches = get_matches(head1, head2)
-    #     tform, inliers, err, matches = estimate_transform(head1, head2, matches)
-    #     head2.transform(tform)
-    #     head1.visible = True
-    #     head2.visible = True
-    #     draw_matches(head1, head2, matches, inliers)
-    #     return True
-
     def get_next_unpositioned_link(self, sift_transform_method="coverage"):
         if not sift_transform_method in ["coverage", "matches", "dynamic"]:
             raise ValueError
@@ -201,54 +185,61 @@ class MultiHead():
         Computes the matching keypoints and estimate the Procrustes transformation,
         then stores the tranformation result as link attributes. 
         '''
+        # fetch the frame id.
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
+        # if the maches has not yet been computed
         if not hasattr(link, "matches"):
             matches = get_matches(head1, head2)
-            inliers_all_points, coverage_all_points, kp_sample_matches, err_matches, matches = estimate_transform(head1,
+            sample_matches_cvg, best_err_coverage, sample_matches_mchs, err_matches, matches = estimate_transform(head1,
                                                                                                                   head2,
                                                                                                                   matches)
-            link.add_ransac_results(inliers_all_points, coverage_all_points, kp_sample_matches, err_matches, matches)
+            # store the results
+            link.add_ransac_results(sample_matches_cvg, best_err_coverage, sample_matches_mchs, err_matches, matches)
         return link
 
-    def sift_transform_from_link(self, link, right_to_left, sift_transform_method="coverage"):
+    def sift_transform_from_link(self, link, right_to_left, sift_transform_method="matches"):
         '''
         Perform transformation estimation with the selected transformation method
         '''
+        # obtain the frame id
         if not sift_transform_method in ["coverage", "matches", "dynamic"]:
             raise ValueError
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
 
+        # perform ransac and procrustes to find the best matches for the transformation
         link = self.ransac_from_link(link)
         xyz1, xyz2, matches = get_xyz_from_matches(head1, head2, link.matches)
+
+        # use different set of match points based on the transform_method which can be ["coverage", "matches", "dynamic"]. 
         if sift_transform_method == "dynamic":
             if isnan(link.err_matches):
-                inliers = link.kp_sample_matches
+                spl_mchs = link.sample_matches_cvg
             elif link.err_matches < 0.01:
-                inliers = link.kp_sample_matches
+                spl_mchs = link.kp_sample_matches
             else:
-                inliers = link.kp_sample_matches
+                spl_mchs = link.sample_matches_cvg
         elif sift_transform_method == "coverage":
-            inliers = link.kp_sample_matches
+            spl_mchs = link.sample_matches_cvg
         elif sift_transform_method == "matches":
-            inliers = link.kp_sample_matches
-        head1.keypoints = xyz1[inliers]
-        head2.keypoints = xyz2[inliers]
+            spl_mchs = link.sample_matches_mchs
+        head1.keypoints = xyz1[spl_mchs]
+        head2.keypoints = xyz2[spl_mchs]
 
         head1.keypoints_clr = [1, 0, 0]
         head2.keypoints_clr = [0, 1, 0]
 
         if right_to_left:
-            d, Z, tform12 = procrustes(xyz2[inliers], xyz1[inliers])
+            d, Z, tform12 = procrustes(xyz2[spl_mchs], xyz1[spl_mchs])
             t = tform12['rotation']
             head1.transform(tform12)
         else:
-            d, Z, tform21 = procrustes(xyz1[inliers], xyz2[inliers])
+            d, Z, tform21 = procrustes(xyz1[spl_mchs], xyz2[spl_mchs])
             t = tform21['rotation']
 
             head2.transform(tform21)
-        draw_matches(head1, head2, link.matches, inliers)
+        draw_matches(head1, head2, link.matches, spl_mchs)
         return link
 
     def icp_transform_from_link(self, link, right_to_left):
@@ -289,13 +280,14 @@ class MultiHead():
         '''
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
-
+        
+        # add the head to the frame sequence
         if link.right not in self.frame_sequence:
             self.frame_sequence.append(link.right)
         if link.left not in self.frame_sequence:
             self.frame_sequence.append(link.left)
 
-
+        # determine the merge direction
         right_to_left = head2.visible and not head1.visible
         if right_to_left:
             self.last_head_id = self.head_id_from_frame_id(link.right)
@@ -493,14 +485,14 @@ class MultiHead():
         print("completed")
 
 
-    def Method_A(self, sift_transform_method="coverage", icp=True, refine_range=True, refine_local=True, verbose=True):
+    def Method_A(self, sift_transform_method="matches", icp=True, refine_range=True, refine_local=True, verbose=True):
         for link_idx in range(14):  # iterate through the links between heads
             # calculate and perform all transformations for each link:
             if verbose:
                 self.links[link_idx].print_short()
             self.all_transforms_from_link(self.links[link_idx], sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local)
 
-    def Method_B(self, sift_transform_method="coverage", icp=True, refine_range=True, refine_local=True, verbose=True):
+    def Method_B(self, sift_transform_method="matches", icp=True, refine_range=True, refine_local=True, verbose=True):
 
         for link_idx in range(6,14):  # iterate through the links between heads
             if verbose:
@@ -512,12 +504,12 @@ class MultiHead():
                 self.links[link_idx].print_short()
             self.all_transforms_from_link(self.links[link_idx], sift_transform_method=sift_transform_method, icp=icp, refine_range=refine_range, refine_local=refine_local)
 
-    def Method_C(self, sift_transform_method="coverage", icp=True, refine_range=True, refine_local=True, verbose=True):
+    def Method_C(self, sift_transform_method="matches", icp=True, refine_range=True, refine_local=True, verbose=True):
         only_first_n = 15
         self.reset_all_head_positions()
         link_idx, err = self.get_next_unpositioned_link(sift_transform_method=sift_transform_method)
         positioned_head_count = 0
-        while (not link_idx is None) and (positioned_head_count < only_first_n or only_first_n == -1):
+        while (not link_idx is None) and (positioned_head_count < only_first_n or only_first_n == -1):# iterate through the links between heads:
             if verbose:
                 self.links[link_idx].print_short()
             self.all_transforms_from_link(self.links[link_idx], sift_transform_method=sift_transform_method, icp=icp,

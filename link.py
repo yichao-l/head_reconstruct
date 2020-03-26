@@ -8,9 +8,6 @@ the result of the RANAC operation based on the SIFT matches:
     The matches object, self.macthes: indicating which  
     the inliers object, self.inliers: a boolean filter to select the calcualted matches from self.matches
     the resulting transformation, tform and the error metric, indicating how good the match is.
-      
-    
-
 '''
 
 class Link():
@@ -36,11 +33,13 @@ class Link():
         if hasattr(self, "matches"):
             del self.matches
 
-    def add_ransac_results(self, inliers_all_points, coverage_all_points, inliers_matches, err_matches, matches):
-
-        self.inliers_all_points = inliers_all_points
-        self.coverage_all_points = coverage_all_points
-        self.kp_sample_matches = inliers_matches
+    def add_ransac_results(self, sample_matches_cvg, best_err_coverage, sample_matches_mchs, err_matches, matches):
+        '''
+        Store the results from the RANSAC computation to the object.
+        '''
+        self.sample_matches_cvg = sample_matches_cvg
+        self.best_err_coverage = best_err_coverage
+        self.sample_matches_mchs = sample_matches_mchs
         self.err_matches = err_matches
         self.matches = matches
 
