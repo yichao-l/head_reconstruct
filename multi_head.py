@@ -196,11 +196,11 @@ class MultiHead():
         # if the maches has not yet been computed
         if not hasattr(link, "matches"):
             matches = get_matches(head1, head2)
-            sample_matches_cvg, err_coverage, sample_matches_mchs, err_matches, matches = estimate_transform(head1,
+            sample_matches_cvg, pct_coverage, sample_matches_mchs, err_matches, matches = estimate_transform(head1,
                                                                                                                   head2,
                                                                                                                   matches)
             # store the results
-            link.add_ransac_results(sample_matches_cvg, err_coverage, sample_matches_mchs, err_matches, matches)
+            link.add_ransac_results(sample_matches_cvg, pct_coverage, sample_matches_mchs, err_matches, matches)
         return link
 
     def sift_transform_from_link(self, link, right_to_left, sift_transform_method="matches"):

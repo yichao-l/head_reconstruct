@@ -77,7 +77,7 @@ def estimate_transform(head1, head2, matches):
 
     best_count_coverage = 0 # record the best number of point covered by a transformation
     best_count_matches = 0 # record the best number of maches covered by a tranformation
-    best_err_coverage = -1 # the coverage value that we want to maximize
+    best_pct_coverage = -1 # the coverage value that we want to maximize
     best_err_matches = 1000  # the inlier matches that we want to maximize
     best_sample_matches_cvg = []
     best_sample_matches_mchs = []
@@ -108,7 +108,7 @@ def estimate_transform(head1, head2, matches):
                     best_err_matches = err
                     # update the progress bar
                     progressbar.set_description(
-                        f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_err_coverage :.2f}%")
+                        f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_pct_coverage :.2f}%")
 
                 # number of ransac that does coverage calculation
                 if j < no_iterations_all_points:
@@ -119,12 +119,12 @@ def estimate_transform(head1, head2, matches):
                     # see if the new transformation has a better coverage
                     if count_all_points > best_count_coverage:
                         best_count_coverage = count_all_points
-                        best_err_coverage = best_count_coverage / xyz2.shape[0]
+                        best_pct_coverage = best_count_coverage / xyz2.shape[0]
                         best_sample_matches_cvg = kp_sample.copy()
                         progressbar.set_description(
-                            f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_err_coverage :.2f}%")
+                            f"Head {head1.frame_id} & {head2.frame_id} :cnt:{best_count_matches:.0f} err:{best_err_matches:.4f} cov:{100 * best_pct_coverage :.2f}%")
 
-    return best_sample_matches_cvg, best_err_coverage, best_sample_matches_mchs, best_err_matches, matches
+    return best_sample_matches_cvg, best_pct_coverage, best_sample_matches_mchs, best_err_matches, matches
 
 def draw_matches(head1, head2, matches, inliers):
     '''
