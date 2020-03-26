@@ -66,7 +66,6 @@ class SingleHead():
         :param data_file:  file to load from, default name is the default file used for saving
         :return: object of  threeD_head class
         '''
-
         try:
             with open(data_file, 'rb') as file_object:
                 raw_data = file_object.read()
@@ -89,6 +88,9 @@ class SingleHead():
         self.center()
 
     def color_eye(self,row,column):
+        '''
+        Color the left eye point in red
+        '''
         self.left_eye_ind = row * 640 + column
         image = self.twoD_image.copy()
         image = image.reshape(-1,3)
@@ -166,13 +168,10 @@ class SingleHead():
         '''
         self.rgb=self.rgb_unfiltered[self.xy_mesh]
 
-
-
     def get_bw_image(self):
         '''
         :return: black and white image with all pixels set to white that have not been filtered out
         '''
-
         img= np.zeros((480*640,3))
         for v in self.xy_mesh:
             img[v]=[1,1,1]
@@ -182,20 +181,16 @@ class SingleHead():
         '''
         :return: a boolean image, True for all pixels thah have not been filtered out
         '''
-
         img = np.zeros(480 * 640) > 0
         for v in self.xy_mesh:
             img[v] = True
         return img.reshape(480, 640)
 
     def transform(self, tform):
-
         '''
-        transform the image:  XYZ*cR + t
+        transform the cloud points:  XYZ*cR + t
         '''
-
         R, c, t = tform['rotation'], tform['scale'], tform['translation']
-
         self.xyz = self.xyz.dot(c * R) + t
         self.keypoints = self.keypoints.dot(c * R) + t
 
@@ -208,16 +203,13 @@ class SingleHead():
         self.xyz = self.xyz.dot(T)
         self.xyz = self.xyz[:, :3]
 
-
     def paint(self, color):
         '''
-       
+        paint the entire head into one color
         '''
         color=np.asarray(color).reshape(-1)
         # self.rgb = self.rgb.mean(axis=1).reshape((-1,1)).dot(np.asarray([[1,1,1]])) * color
         self.rgb = self.rgb.mean(axis=1).reshape((-1,1)).dot(np.asarray([[0,0,0]])) + color
-
-
 
     def edge_based_filter(self,up=150,down=370,left=260,right=480):
         '''
@@ -227,10 +219,9 @@ class SingleHead():
         # extract the s layer of the HSV image
         image = self.twoD_image.copy()
         plt.imsave("head_2d_image/full_{}_{}.png".format(self.sequence_id,self.frame_id),image)
-        
         image = cv2.imread("head_2d_image/full_{}_{}.png".format(self.sequence_id,self.frame_id))
         edge = cv2.Canny(image,0,250)
-        
+        # generating as complete an edge as possible 
         for i in range (3):
             _, contours, hierarchy = cv2.findContours(edge,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
             image_another = image.copy()
@@ -254,30 +245,12 @@ class SingleHead():
 
         edge_filter = erode > 0
         edge_filter = np.ravel(edge_filter)
-
+        # filter out the unwanted pixels
         filter = [edge_filter[i] for i in self.xy_mesh]
         self.xy_mesh = self.xy_mesh[filter]
         self.rgb = self.rgb[filter]
         self.xyz = self.xyz[filter]
         self.save_filtered_image("edge_based")
-
-    def erode_filter(self,erode_iteration=1):
-
-        self.get_filtered_image()
-
-        image = cv2.imread("head_2d_image/filtered_{}_{}.png".format(self.sequence_id,self.frame_id))
-        kernel = np.ones((3,3))
-
-        erode = cv2.erode(image,kernel,iterations=erode_iteration)
-        erode = erode.reshape(-1,3)
-        erode = np.sum(erode,axis=1)
-        edge_filter = erode > 0
-
-        filter = [edge_filter[i] for i in self.xy_mesh]
-        self.xy_mesh = self.xy_mesh[filter]
-        self.rgb = self.rgb[filter]
-        self.xyz = self.xyz[filter]
-
 
     def filter_depth(self,depth):
         '''
@@ -288,7 +261,6 @@ class SingleHead():
         self.xy_mesh=self.xy_mesh[depth_filter]
         self.rgb=  self.rgb[depth_filter]
         self.xyz=  self.xyz[depth_filter]
-
         self.save_filtered_image("depth_filter")
 
 
@@ -298,14 +270,12 @@ class SingleHead():
         '''
         nan_filter = ~np.isnan(self.xyz).any(axis=1)
         self.xy_mesh=self.xy_mesh[nan_filter]
-        
         self.xyz = self.xyz[nan_filter]
         self.rgb = self.rgb[nan_filter]
         self.save_filtered_image("nan_filter")
 
     def sparsify(self,sparsity):
         '''
-
         :param sparsity: the fraction of pixles that is retained
         :return: updates the object
         '''
@@ -363,31 +333,6 @@ class SingleHead():
             end_cnt = np.sum(filter)
         print(remove_count)
         self.save_filtered_image("parzen_window")
-
-    def remove_dangling(self):
-        '''
-        Remove the "flying pixels" if there are less than 2 pixels in a 3x3 window around that pixel.
-        '''
-        filter =np.ones(self.xy_mesh.shape) >0
-        start_cnt=np.sum(filter)
-        end_cnt = 0
-        while end_cnt < start_cnt:
-            filter = np.ones(self.xy_mesh.shape) > 0
-            start_cnt = np.sum(filter)
-            bool_img = self.get_bool_image()
-
-            for i, index in enumerate (self.xy_mesh):
-                y=index//640
-                x=index % 640
-                small_bool = bool_img[max(y-1,0):y + 2, max(x-1,0):x + 2]
-
-                if np.sum(small_bool)<=2:
-                    filter[i]=False
-            self.xy_mesh=self.xy_mesh[filter]
-            self.xyz = self.xyz[filter]
-            self.rgb = self.rgb[filter]
-            end_cnt = np.sum(filter)
-        self.save_filtered_image("remove_dangle")
 
     def remove_background_color(self):
         '''
@@ -463,8 +408,7 @@ class SingleHead():
 
     def create_vpython_spheres(self, force_sparce=False):
         '''
-        creates the spheres that can be used by vpython
-        :return:
+        creates the spheres for either a frame or consecutive frames that can be used by vpython
         '''
         if force_sparce:
             sparce_xyz = self.sparse_xyz
@@ -483,15 +427,13 @@ class SingleHead():
 
     def save(self, file_name=None):
         '''
-        :param file_name:
-        :return:
+        :param file_name: file name for storing the file
         '''
         if not os.path.isdir("pickled_head"):
             os.mkdir("pickled_head")
         if file_name is None:
             file_name = f"pickled_head/head{self.sequence_id}_{self.frame_id}.p"
         pickle.dump(self, open(file_name, 'wb'))
-
 
     def remove_edge_points(self, kps, des, diameter):
         '''
@@ -504,83 +446,3 @@ class SingleHead():
         filter = [np.sum(bw[coord[1]-offset : coord[1]-offset+diameter,
                          coord[0]-offset : coord[0]-offset+diameter]) == diameter ** 2 for coord in coords]
         return [kp for i, kp in enumerate(kps) if filter[i]], np.asarray([d for i, d in enumerate(des) if filter[i]])
-
-    def create_profile(self):
-        big_angle_step = 10
-        small_angle_step = 1
-        O = np.asarray([0, 0, 0.2])
-        y_range = (-0.25, 0.1)
-        y_step = 0.04
-        small_angle_step = 1
-        points = self.xyz
-        filter_s = np.logical_and(points[:, 1] > y_range[0] - 0.5 * y_step, points[:, 1] < y_range[1] + 0.5 * y_step)
-        points_s = points[filter_s]
-        colors_s = self.rgb[filter_s]
-        self.r_profile = np.zeros((int(360 / small_angle_step), int(1 + (y_range[1] - y_range[0]) // y_step)))
-        self.rgb_profile = np.zeros((self.r_profile.shape[0], self.r_profile.shape[1], 3))
-        y_values = np.arange(y_range[0], y_range[1], step=y_step)
-        for y_i, y in enumerate(y_values):
-            O_for_y = np.asarray([0, y, 0]) + O
-            filter_ss = np.logical_and(points_s[:, 1] > y - 2 * y_step, points_s[:, 1] < y + 2 * y_step)
-            points_ss = points_s[filter_ss]
-            colors_ss = colors_s[filter_ss]
-
-            vec_from_O_ss = points_ss - O_for_y
-            angles_ss = np.mod(np.angle(vec_from_O_ss[:, 0] + 1j * vec_from_O_ss[:, 2]), 2 * np.pi)
-            for theta_0 in np.pi * np.arange(0., 360, step=big_angle_step) / 180:
-                filter_sss = np.logical_or(
-                    np.mod(angles_ss - theta_0, 2 * np.pi) > np.mod(-(np.pi * small_angle_step / 180), 2 * np.pi),
-                    np.mod(angles_ss - theta_0, 2 * np.pi) < (big_angle_step + small_angle_step) * np.pi / 180)
-                points_sss = points_ss[filter_sss]
-                vec_from_O_sss = vec_from_O_ss[filter_sss]
-                colors_sss = colors_ss[filter_sss]
-
-                if points_sss.size > 0:
-                    for theta_1 in np.pi * np.arange(0, big_angle_step, step=small_angle_step) / 180:
-                        theta = theta_0 + theta_1
-                        U = np.cos(theta), 0, np.sin(theta)
-                        # o = {'type': "point", 'pos': prj(U+O_for_y), 'radius': "0.01", 'color': vec(1.0,0,1.0)}
-                        # self.objects.append(o)
-                        filter1 = np.linalg.norm(vec_from_O_sss - np.inner(U, vec_from_O_sss).reshape((-1, 1)) * U,
-                                                 axis=1) < 0.005
-                        filter2 = np.inner(U, vec_from_O_sss) > 0
-                        filter = np.logical_and(filter1, filter2)
-                        filtered_points = points_sss[filter]
-                        if len(filtered_points) > 0:
-                            angles_sss = angles_ss[filter_sss]
-                            # print(f"{np.mean(angles_sss[filter])*180/np.pi:.2f}\t{theta*180/np.pi:.2f}" )
-                            self.r_profile[int(np.round(theta * 180 / np.pi)), y_i] = np.linalg.norm(
-                                np.max(filtered_points, axis=0) - O_for_y)
-                            self.rgb_profile[int(np.round(theta * 180 / np.pi)), y_i] = np.mean(colors_sss[filter],
-                                                                                                axis=0)
-        return self.r_profile, self.rgb_profile, y_values
-
-    def find_angles(self):
-        big_angle_step = 10
-        O = np.asarray([0, 0, 0.2])
-        y_range = (-0.25, 0.1)
-        y_step = 0.04
-        y_steps = (y_range[1] - y_range[0]) // y_step
-
-        small_angle_step = 1
-        points = self.xyz
-        self.angles = np.ones((int(y_steps + 1), 360 // small_angle_step)) > 0
-
-        filter_s = np.logical_and(points[:, 1] > y_range[0] + 0.5 * y_step, points[:, 1] < y_range[1])
-        points_s = points[filter_s]
-        y_values = np.arange(y_range[0], y_range[1], step=y_step)
-        for y_i, y in enumerate(y_values):
-            O_for_y = np.asarray([0, y, 0]) + O
-            filter_ss = np.logical_and(points_s[:, 1] > y - 2 * y_step, points_s[:, 1] < y + 2 * y_step)
-            points_ss = points_s[filter_ss]
-            vec_from_O_ss = points_ss - O_for_y
-            angles_ss = np.mod(np.angle(vec_from_O_ss[:, 0] + 1j * vec_from_O_ss[:, 2]), 2 * np.pi)
-            for theta in np.pi * np.arange(0, 360, step=small_angle_step) / 180:
-                filter_sss1 = (
-                        np.mod(angles_ss, 2 * np.pi) > np.mod(theta - 0.5 * np.pi * small_angle_step / 180, 2 * np.pi))
-                filter_sss2 = (
-                        np.mod(angles_ss, 2 * np.pi) < np.mod(theta + 0.5 * np.pi * small_angle_step / 180, 2 * np.pi))
-                self.angles[y_i, int(np.round(theta * 180 / np.pi))] &= np.sum(filter_sss1) > 0 and np.sum(
-                    filter_sss2) > 0
-
-        return self.angles, np.all(self.angles, axis=0), y_values

@@ -163,7 +163,6 @@ def refine_local(mhead, A, B, step, axis, angle, filter=None, max_distance=0.01)
 
 def refine_6D(mhead, A, B, angle_over_range=False, pos_over_range=False, filter=None):
     '''
-
     :param mhead: Multi Head Object
     :param A: Index of Head A
     :param B: Index of Head B
