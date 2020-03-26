@@ -237,15 +237,14 @@ class SingleHead():
         dilation[down:,:]=0
         dilation[:,right:]=0
         dilation[:,:left]=0
+        # perform flood fill based on the boundry
         im_floodfill = binary_fill_holes(dilation)
         im_floodfill = im_floodfill*1
         im_floodfill = np.uint8(im_floodfill)
- 
         erode = cv2.erode(im_floodfill,kernel,iterations=7)
-
+        # filter out the unwanted pixels
         edge_filter = erode > 0
         edge_filter = np.ravel(edge_filter)
-        # filter out the unwanted pixels
         filter = [edge_filter[i] for i in self.xy_mesh]
         self.xy_mesh = self.xy_mesh[filter]
         self.rgb = self.rgb[filter]
@@ -326,7 +325,7 @@ class SingleHead():
                     if num_within < p :
                         remove_count+=1
                         filter[i] = False
-                
+            # remove unwanted points from attributes.    
             self.xy_mesh=self.xy_mesh[filter]
             self.xyz = self.xyz[filter]
             self.rgb = self.rgb[filter]
@@ -418,7 +417,7 @@ class SingleHead():
             sparce_rgb = self.rgb
         radius = np.ones(sparce_xyz.shape[0]) * 0.0015
         rad = 0.001
-
+        # generate vpython spheres
         self.spheres = [{'pos': vec(sparce_xyz[i, 0], -sparce_xyz[i, 1], -sparce_xyz[i, 2]), 'radius': 0.0015,
                          'color': (vec(sparce_rgb[i, 0], sparce_rgb[i, 1], sparce_rgb[i, 2]))} for i in
                         range(sparce_xyz.shape[0])]
