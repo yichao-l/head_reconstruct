@@ -41,7 +41,7 @@ if method == 'A':
     mhead.Method_A(sift_transform_method="matches", icp=True, refine_range=False, refine_local=False)
 elif method == 'B':
     # Method B
-    mhead.Method_B(sift_transform_method="coverage", icp=True, refine_range=False, refine_local=False)
+    mhead.Method_B(sift_transform_method="matches", icp=True, refine_range=False, refine_local=False)
 elif method == 'C':
     # Method C
     mhead.Method_C(sift_transform_method="matches", icp=True, refine_range=False, refine_local=False)
