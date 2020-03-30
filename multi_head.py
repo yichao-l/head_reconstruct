@@ -119,7 +119,7 @@ class MultiHead():
         :return:
         '''
         for link in self.links:
-            link.reset()
+            # link.reset()
             self.ransac_from_link(link)
 
     def append(self, head):
@@ -217,7 +217,7 @@ class MultiHead():
         link = self.ransac_from_link(link)
         xyz1, xyz2, matches = get_xyz_from_matches(head1, head2, link.matches)
 
-        # use different set of match points based on the transform_method which can be ["coverage", "matches", "dynamic"]. 
+        # use different set of match points based on the transform_method which can be ["coverage", "matches", "dynamic"].
         if sift_transform_method == "dynamic":
             if isnan(link.err_matches): # if the error value using match point inliers is Nan
                 spl_mchs = link.sample_matches_cvg
@@ -225,10 +225,10 @@ class MultiHead():
                 spl_mchs = link.kp_sample_matches
             else:
                 spl_mchs = link.sample_matches_cvg
-        # use the coverage error measure 
+        # use the coverage error measure
         elif sift_transform_method == "coverage":
             spl_mchs = link.sample_matches_cvg
-        # use the matches error measure 
+        # use the matches error measure
         elif sift_transform_method == "matches":
             spl_mchs = link.sample_matches_mchs
         head1.keypoints = xyz1[spl_mchs]
@@ -287,7 +287,7 @@ class MultiHead():
         '''
         head1 = self.heads[self.head_id_from_frame_id(link.right)]
         head2 = self.heads[self.head_id_from_frame_id(link.left)]
-        
+
         # add the head to the frame sequence
         if link.right not in self.frame_sequence:
             self.frame_sequence.append(link.right)
@@ -323,7 +323,7 @@ class MultiHead():
                 last_score = score
                 filter, score = self.refine_transform_from_link(link, right_to_left, filter=filter)
             self.icp_transform_from_link(link, right_to_left)
-        
+
         # perform the ICP transformation, if it's set True
         if icp:
             self.icp_transform_from_link(link, right_to_left)
@@ -455,7 +455,7 @@ class MultiHead():
         points_s = points[filter_s]
         colors_s = colors[filter_s]
         y_range = np.arange(y_range[0], y_range[1], step=y_step)
-        
+
         with tqdm(total=y_range.size) as progressbar:
             for y in y_range:
                 O_for_y = np.asarray([0, y, 0]) + O

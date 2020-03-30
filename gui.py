@@ -10,7 +10,6 @@ import pickle
 import time
 import numpy as np
 
-
 def Savebutton():
     global name
     if name is None:
@@ -83,7 +82,7 @@ args = sys.argv
 
 scene.width = scene.height = 800
 scene.background = color.white
-scene.range = 0.35
+scene.range = 0.5
 
 button(text='Save', bind=Savebutton)
 button(text='Read', bind=Readbutton)
