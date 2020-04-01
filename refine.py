@@ -21,7 +21,6 @@ def calc_R(phi, axis):
 
 def refine_over_range(mhead, A, B, range, step, axis, filter, angle, max_distance=0.005):
     '''
-
     :param mhead:
     :param A:
     :param B:
@@ -64,7 +63,6 @@ def refine_over_range(mhead, A, B, range, step, axis, filter, angle, max_distanc
             head2.xyz = np.dot(head2.xyz - CoG, R) + CoG
         else:
             head2.xyz = head2.xyz - value
-        # print(value * np.array(axis), count / np.size(xyz2), best_count / np.size(xyz2))
     if angle:
         R = calc_R(best_value, axis)
         head2.xyz = np.dot(head2.xyz - CoG, R) + CoG
@@ -75,7 +73,6 @@ def refine_over_range(mhead, A, B, range, step, axis, filter, angle, max_distanc
 
 def refine_local(mhead, A, B, step, axis, angle, filter=None, max_distance=0.01):
     '''
-
     :param mhead: Multi Head Object
     :param A: Index of Head A
     :param B: Index of Head B
@@ -85,12 +82,9 @@ def refine_local(mhead, A, B, step, axis, angle, filter=None, max_distance=0.01)
     :param filter: subset of  points of Head B that  are actually used
     :param max_distance: max distance between points on head B to head A
     :return:
-
     algorithm looks for local optimum: it scans over the given axis (angular or carthesian) and look for local optimum by either increasing or decreasing the middle position,
     tracking values at the boundaries
-
     '''
-
     max_distance_between_points = max_distance
     head1 = mhead.heads[mhead.head_id_from_frame_id(A)]
     head2 = mhead.heads[mhead.head_id_from_frame_id(B)]

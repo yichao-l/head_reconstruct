@@ -12,6 +12,7 @@ import numpy as np
 
 
 def Savebutton():
+    # take a screen shot of the 3d object
     global name
     if name is None:
         file_name = f"mesh.png"
@@ -21,6 +22,7 @@ def Savebutton():
 
 
 def Readbutton():
+    # read 3-d object from the file
     global name
     if 'l' in globals():
         global l
@@ -45,8 +47,8 @@ def Readbutton():
     c = points(pos=spheres, size_units='world')
     print(len(spheres))
 
-
 def ReadMeshbutton():
+    # read the other 3-D object which should correspond to the mesh of the head
     global name
     if 'c' in globals():
         global c
@@ -78,7 +80,7 @@ def ReadMeshbutton():
             p = sphere(pos=o['pos'], color=col, radius=r)
             l.append(p)
 
-
+# displaying the 3-d object
 args = sys.argv
 
 scene.width = scene.height = 800

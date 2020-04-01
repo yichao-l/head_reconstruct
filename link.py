@@ -22,12 +22,12 @@ class Link():
         self.matches = matches
 
     def reset(self):
-        if hasattr(self, "inliers_all_points"):
-            del self.inliers_all_points
-        if hasattr(self, "coverage_all_points"):
-            del self.coverage_all_points
-        if hasattr(self, "kp_sample_matches"):
-            del self.kp_sample_matches
+        if hasattr(self, "sample_matches_cvg"):
+            del self.sample_matches_cvg
+        if hasattr(self, "pct_coverage"):
+            del self.pct_coverage
+        if hasattr(self, "sample_matches_mchs"):
+            del self.sample_matches_mchs
         if hasattr(self, "err_matches"):
             del self.err_matches
         if hasattr(self, "matches"):
@@ -37,9 +37,11 @@ class Link():
         '''
         Store the results from the RANSAC computation to the object.
         '''
-        self.inliers_all_points = sample_matches_cvg
-        self.coverage_all_points = pct_coverage
-        self.kp_sample_matches = sample_matches_mchs
+        # the sample matches with the best coverage amount all points
+        self.sample_matches_cvg = sample_matches_cvg
+        self.pct_coverage = pct_coverage
+        # the sample matches with the best inlier matches numbers
+        self.sample_matches_mchs = sample_matches_mchs
         self.err_matches = err_matches
         self.matches = matches
 
@@ -47,13 +49,13 @@ class Link():
         print("left:", self.left, "\tright:", self.right)
         if hasattr(self, "matches"):
             print(f"# Matches {len(self.matches)}")
-        if hasattr(self, "kp_sample_matches"):
-            print(f"# Inliers {len(self.kp_sample_matches)}")
-        if hasattr(self, "coverage_all_points"):
-            print(f"Coverage {100 * self.coverage_all_points:.0f}%")
+        if hasattr(self, "sample_matches_mchs"):
+            print(f"# Inliers {len(self.sample_matches_mchs)}")
+        if hasattr(self, "pct_coverage"):
+            print(f"Coverage {100 * self.pct_coverage:.0f}%")
         if hasattr(self, "err_matches"):
             print(f"Err Matches {self.err_matches:.4f}%")
 
     def print_short(self):
         print(
-            f"{self.left}-{self.right}, Count={np.sum(self.kp_sample_matches)}, Err Matches={self.err_matches:.4f}, Cov={100 * self.coverage_all_points:.1f}")
+            f"{self.left}-{self.right}, Count={np.sum(self.sample_matches_mchs)}, Err Matches={self.err_matches:.4f}, Cov={100 * self.pct_coverage:.1f}")

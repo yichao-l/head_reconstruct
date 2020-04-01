@@ -98,7 +98,7 @@ class MultiHead():
         for frame, ind in enumerate(my_eye_ind):
             if ind:
                 ind_xy = np.argwhere(self.heads[frame].xy_mesh == ind)
-                eye_coord.append(self.heads[frame].xyz[ind_xy][0][0])
+                eye_coord.append(self.heads[frame].xyz[ind_xy][0][0]) 
         eye_coord = np.array(eye_coord)
         mean_coord = np.mean(eye_coord, axis=0)
         sub_mean = eye_coord - mean_coord
@@ -106,10 +106,11 @@ class MultiHead():
         print(f"mean distance: {np.mean(distances)}")
         return np.mean(distances)
 
-    def calc_all_sift_keypoints(self, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=10, SIFT_sigma=0.50):
+    def calc_all_sift_keypoints(self, SIFT_contrastThreshold=0.02, SIFT_edgeThreshold=8, SIFT_sigma=0.5):
         '''
         Calculate the keypoints for all the SingleHead object in self.heads.
         '''
+        print(SIFT_contrastThreshold,SIFT_edgeThreshold)
         for head in self.heads:
             head.create_keypoints(SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
 
@@ -161,9 +162,9 @@ class MultiHead():
             possibly_this_link = ((head_left.visible and not head_right.visible) or (
                     (not head_left.visible) and head_right.visible) or not any_head_positioned)
             if ((link.err_matches < best_error and sift_transform_method == "matches") or (
-                    link.coverage_all_points > best_coverage and sift_transform_method == "coverage")) and possibly_this_link:
+                    link.pct_coverage > best_coverage and sift_transform_method == "coverage")) and possibly_this_link:
                 best_error = link.err_matches
-                best_coverage = link.coverage_all_points
+                best_coverage = link.pct_coverage
                 best_link_index = i
         return best_link_index, best_error
 
@@ -222,7 +223,7 @@ class MultiHead():
             if isnan(link.err_matches): # if the error value using match point inliers is Nan
                 spl_mchs = link.sample_matches_cvg
             elif link.err_matches < 0.01: # if the error value is less that 0.01
-                spl_mchs = link.kp_sample_matches
+                spl_mchs = link.sample_matches_mchs
             else:
                 spl_mchs = link.sample_matches_cvg
         # use the coverage error measure 
@@ -278,7 +279,7 @@ class MultiHead():
                                       pos_over_range=cartesian_over_range, filter=filter)
         return filter, score
 
-    def all_transforms_from_link(self, link, sift_transform_method="coverage", icp=True, refine_range=True, refine_local=True):
+    def all_transforms_from_link(self, link, sift_transform_method="matches", icp=False, refine_range=False, refine_local=False):
         '''
         :param link: The link for which all transforms are to be performed
         :return: the link itslef, unmodified.
@@ -366,15 +367,17 @@ class MultiHead():
         pickle.dump((self.spheres, name), open("pickled_head/head_spheres.p", 'wb'))
 
     def save(self):
+        # save keypoints for each SingleHead
         for head in self.heads:
             if hasattr(head, 'kp'):
                 head.kp = [(point.pt, point.size, point.angle, point.response, point.octave,
                             point.class_id) for point in head.kp]
+        # save the information for Links, e.g. machtes
         for link in self.links:
             if hasattr(link, 'matches'):
                 link.matches = [(match.distance, match.imgIdx, match.queryIdx, match.trainIdx) for match in
                                 link.matches]
-
+        
         pickle.dump(self, open(f"pickled_head/mhead{self.heads[0].sequence_id}.p", 'wb'))
         for head in self.heads:
             if hasattr(head, 'kp'):

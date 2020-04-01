@@ -402,7 +402,7 @@ class SingleHead():
         img = self.get_filtered_image()
         self.kp, self.des = get_descriptors(img, SIFT_contrastThreshold, SIFT_edgeThreshold, SIFT_sigma)
         # remove the edges that are on the edge
-        diameter = 20  # minimum distance from the edge
+        diameter = 15  # minimum distance from the edge
         self.kp, self.des = self.remove_edge_points(self.kp, self.des, diameter=diameter)
 
     def create_vpython_spheres(self, force_sparce=False):
