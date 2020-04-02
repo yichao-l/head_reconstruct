@@ -30,8 +30,9 @@ def refine_over_range(mhead, A, B, range, step, axis, filter, angle, max_distanc
     :param filter: subset of  points of Head B that  are actually used
     :param angle: angular(True) or  carthesian(False)
     :param max_distance: max distance between points on head B to head A
-    :return:
+    :return: (optimum translation or rotation,fraction of point in range, applied filter )
     '''
+
     max_distance_between_points = max_distance
     best_count = -1
 
@@ -40,9 +41,9 @@ def refine_over_range(mhead, A, B, range, step, axis, filter, angle, max_distanc
     l = head2.xyz.shape[0]
 
     if filter is None:
-        filter2 = np.random.random((l)) < 0.1
+        filter2 = np.random.random((l)) < 0.1  # only consider 10% of the points, to reduce computational complexity
     else:
-        filter2 = filter
+        filter2 = filter  # if filter is provided, re-use existing filter, to keep optimization consistent
 
     for value in np.arange(-range, range, step):
         if angle:
@@ -82,7 +83,7 @@ def refine_local(mhead, A, B, step, axis, angle, filter=None, max_distance=0.01)
     :param angle: angular(True) or  carthesian(False)
     :param filter: subset of  points of Head B that  are actually used
     :param max_distance: max distance between points on head B to head A
-    :return: (optimum translation or rotation,fraction of point in range, filter)
+    :return: (optimum translation or rotation,fraction of point in range, applied filter )
 
     algorithm looks for local optimum: it scans over the given axis (angular or carthesian) and look for local optimum by either increasing or decreasing the middle position,
     tracking values at the boundaries
@@ -155,7 +156,6 @@ def refine_local(mhead, A, B, step, axis, angle, filter=None, max_distance=0.01)
             middle_count = higher_count
             higher_count = count
     return value * np.array(axis), middle_count / np.size(xyz2), filter2
-
 
 def refine_6D(mhead, A, B, angle_over_range=False, pos_over_range=False, filter=None):
     '''
